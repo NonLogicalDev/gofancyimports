@@ -3,6 +3,7 @@ package main
 import (
 	"go/ast"
 	"go/token"
+	"strings"
 )
 
 // TODO:
@@ -12,6 +13,12 @@ import (
 //
 
 type ImportDecl struct {
+	// Comments that are floating above this declaration, yet in the middle of import blocks.
+	FloatingComments []*ast.CommentGroup
+
+	// Comments that are floating inside this declaration after all specs but before RParen.
+	WidowComments []*ast.CommentGroup
+
 	Doc *ast.CommentGroup
 	Groups []ImportSpecGroup
 	Spec *ast.GenDecl
@@ -27,6 +34,12 @@ type posRange struct {
 	end token.Pos
 }
 
+type commentRangeResult struct {
+	before []*ast.CommentGroup
+	inside []*ast.CommentGroup
+	after  []*ast.CommentGroup
+}
+
 func MergeImportDecls(decls []ImportDecl) ImportDecl {
 	var merged ImportDecl
 
@@ -35,6 +48,9 @@ func MergeImportDecls(decls []ImportDecl) ImportDecl {
 		if merged.Spec == nil {
 			merged.Spec = d.Spec
 			merged.Doc = d.Doc
+
+			merged.FloatingComments = append(merged.FloatingComments, d.FloatingComments...)
+			merged.WidowComments = append(merged.WidowComments, d.WidowComments...)
 		}
 		groups = append(groups, d.Groups...)
 	}
@@ -61,6 +77,9 @@ func ReGroupImports(groups []ImportSpecGroup) []ImportSpecGroup {
 	var nonMergeableGroups []ImportSpecGroup
 
 	for _, g := range groups {
+		if len(g.Specs) == 0 {
+			continue
+		}
 		if g.Doc == nil {
 			mergableGroups = append(mergableGroups, g)
 		} else {
@@ -68,7 +87,11 @@ func ReGroupImports(groups []ImportSpecGroup) []ImportSpecGroup {
 		}
 	}
 	defaultGroup := MergeImportGroups(mergableGroups)
-	return append([]ImportSpecGroup{defaultGroup}, nonMergeableGroups...)
+	if len(defaultGroup.Specs) > 0 {
+		return append([]ImportSpecGroup{defaultGroup}, nonMergeableGroups...)
+	} else {
+		return nonMergeableGroups
+	}
 }
 
 func SplitSTDSpecs(specs []*ast.ImportSpec) ([]*ast.ImportSpec, []*ast.ImportSpec) {
@@ -81,65 +104,161 @@ func SplitSTDSpecs(specs []*ast.ImportSpec) ([]*ast.ImportSpec, []*ast.ImportSpe
 	return stdImportSpecs, defaultImportSpecs
 }
 
+func GatherComments(fset *token.FileSet, comments []*ast.CommentGroup, startPos, endPos token.Pos) commentRangeResult {
+	result := commentRangeResult{}
 
-func GatherImportDecls(fset *token.FileSet, decls []ast.Decl) ([]ImportDecl, []ast.Decl) {
+	for _, c := range comments {
+		if c.End() < startPos {
+			result.before = append(result.before, c)
+		} else if c.Pos() > endPos {
+			result.after = append(result.after, c)
+		} else {
+			result.inside = append(result.inside, c)
+		}
+	}
+
+	return result
+}
+
+func GatherImportDecls(fset *token.FileSet, cgs []*ast.CommentGroup, decls []ast.Decl) ([]ImportDecl, []ast.Decl) {
 	var (
 		nonImportDecls []ast.Decl
 		importDecls []ImportDecl
+		lastDecl ast.Decl
 	)
 
 	for _, decl := range decls {
 		if gdecl, ok := decl.(*ast.GenDecl); ok && gdecl.Tok == token.IMPORT {
-			var (
-				groups = []ImportSpecGroup{}
-				groupIdx = 0
-			)
+			currDecl := ImportDecl{
+				Doc:  gdecl.Doc,
+				Spec: gdecl,
+			}
 
-			var prevSpec ast.Spec
+			declRange := TruePosRange(gdecl)
+
+			var (
+				groups []ImportSpecGroup
+				groupIdx = 0
+				prevSpec ast.Spec
+			)
 			for _, spec := range gdecl.Specs {
-				// Check if line difference is greater than one, and reset sticky Group.
+				specRange := TruePosRange(spec)
+
+				// Check if line difference is greater than one, and reset Group Index.
 				if prevSpec != nil &&  fset.Position(spec.Pos()).Line - fset.Position(prevSpec.Pos()).Line > 1 {
 					groupIdx++
 				}
-
 				shouldRecordComment := false
 				if groupIdx > len(groups)-1 {
 					shouldRecordComment = true
 					groups = append(groups, ImportSpecGroup{})
 				}
 
-				if ispec, ok := spec.(*ast.ImportSpec); ok {
-					if shouldRecordComment {
-						groups[groupIdx].Doc = ispec.Doc
-						ispec.Doc = nil
+				currGroup := groups[groupIdx]
+
+				if prevSpec != nil {
+					// Find floating comments that start after previous spec and end before this one.
+					for _, cg := range cgs {
+						prevSpecRange := TruePosRange(prevSpec)
+						if cg.Pos() > prevSpecRange.end && cg.Pos() < specRange.start {
+							currDecl.WidowComments = append(currDecl.WidowComments, cg)
+						}
 					}
-					groups[groupIdx].Specs = append(groups[groupIdx].Specs, ispec)
 				}
 
+				if ispec, ok := spec.(*ast.ImportSpec); ok {
+					if shouldRecordComment {
+						currGroup.Doc = ispec.Doc
+						ispec.Doc = nil
+					}
+					currGroup.Specs = append(currGroup.Specs, ispec)
+				}
+
+				groups[groupIdx] = currGroup
 				prevSpec = spec
 			}
+			currDecl.Groups = groups
 
-			importDecls = append(importDecls, ImportDecl{
-				Doc:    gdecl.Doc,
-				Spec:   gdecl,
-				Groups: groups,
-			})
+
+			for _, cg := range cgs {
+				if lastDecl != nil {
+					lastDeclRange := TruePosRange(lastDecl)
+					// Find floating comments that start after last declaration.
+					if cg.Pos() > lastDeclRange.end && cg.Pos() < declRange.start {
+						currDecl.FloatingComments = append(currDecl.FloatingComments, cg)
+					}
+				}
+				if prevSpec != nil && gdecl.Rparen != token.NoPos {
+					// Find floating comments that are not attachable to any spec.
+					prevSpecRange := TruePosRange(prevSpec)
+					if cg.Pos() < gdecl.Rparen && cg.Pos() > prevSpecRange.end {
+						currDecl.WidowComments = append(currDecl.WidowComments, cg)
+					}
+				}
+			}
+
+			importDecls = append(importDecls, currDecl)
 		} else {
 			nonImportDecls = append(nonImportDecls, decl)
 		}
+
+
+		lastDecl = decl
 	}
 
 	return importDecls, nonImportDecls
 }
 
 
-func BuildDecl(fset *token.FileSet, node *ast.File, offset token.Pos, idecl ImportDecl) (ast.Decl, token.Pos)  {
-	f := fset.File(offset)
+func BuildDecl(fset *token.FileSet, offset token.Pos, idecl ImportDecl) (ast.Decl, token.Pos, []int)  {
 	var newLines []int
+
+	// Add initial newline at the beginning of the group. (before comment)
+	newLines = append(newLines, int(offset))
+	offset++
+
+	//if idecl.FloatingComments != nil || idecl.WidowComments != nil {
+	//	if idecl.Doc == nil {
+	//		idecl.Doc = &ast.CommentGroup{}
+	//	}
+	//
+	//	var newList []*ast.Comment
+	//	curList := idecl.Doc.List
+	//	for _, cg := range idecl.FloatingComments {
+	//		newList = append(newList, cg.List...)
+	//	}
+	//	newList = append(newList, curList...)
+	//	for _, cg := range idecl.WidowComments {
+	//		newList = append(newList, cg.List...)
+	//	}
+	//
+	//	// Adjust comment positions, so that they are relatively correct.
+	//	// They will be shifted into correct place later.
+	//	commentOffset := token.Pos(1)
+	//	for _, c := range newList {
+	//		c.Slash = commentOffset
+	//
+	//		cRange := TruePosRange(c)
+	//		commentOffset += (cRange.end - cRange.start) + 2
+	//	}
+	//	idecl.Doc.List = newList
+	//}
 
 	// Place the comment at the offset.
 	if idecl.Doc != nil {
 		AdjustCommentGroupPos(offset-idecl.Doc.Pos(), idecl.Doc)
+		for _, c := range idecl.Doc.List {
+			// Ensure all comments start from new line.
+			newLines = append(newLines, int(c.Pos()))
+			hasNewlines := false
+			for _, idx := range FindAllIndexes(c.Text, "\n") {
+				hasNewlines = true
+				newLines = append(newLines, int(c.Pos()) + idx)
+			}
+			if hasNewlines {
+				newLines = append(newLines, int(c.End()) + 1)
+			}
+		}
 		offset = idecl.Doc.End() + 1
 		idecl.Spec.Doc = idecl.Doc
 	}
@@ -149,27 +268,39 @@ func BuildDecl(fset *token.FileSet, node *ast.File, offset token.Pos, idecl Impo
 	offset = idecl.Spec.TokPos + 7 + 1
 	if idecl.Spec.Lparen != 0 {
 		offset = idecl.Spec.Lparen + 1
+	} else {
+		// Force add parenthesis if they don't exist.
+		idecl.Spec.Lparen = offset
+		offset++
 	}
-
 
 	idecl.Spec.Specs = nil
 	groups := ReGroupImports(idecl.Groups)
-	for _, g := range groups {
-		newLines = append(newLines, f.Offset(offset))
-		newLines = append(newLines, f.Offset(offset+1))
-		offset += 1
 
-		first := true
-		for _, s := range g.Specs {
+	for _, g := range groups {
+		if len(g.Specs) == 0 {
+			continue
+		}
+
+		// Ensure there is a newline before each group.
+		newLines = append(newLines, int(offset))
+		offset++
+
+		// And a spacer line to clearly delimit groups.
+		newLines = append(newLines, int(offset))
+		offset++
+
+		for sIdx, s := range g.Specs {
+			// Ensure specs don't have unexpected doc comment (these should come from the group).
 			s.Doc = nil
 
-			if first {
+			// For the first spec in the group, attach the doc comment.
+			if sIdx == 0 {
 				if g.Doc != nil {
 					AdjustCommentGroupPos(offset-g.Doc.Pos(), g.Doc)
 					offset = g.Doc.End() + 1
 					s.Doc = g.Doc
 				}
-				first = false
 			}
 
 			AdjustImportSpecPos(offset-s.Pos(), s)
@@ -181,22 +312,82 @@ func BuildDecl(fset *token.FileSet, node *ast.File, offset token.Pos, idecl Impo
 		}
 	}
 
-	if !FileSpliceLines(f, newLines) {
-		panic("oops")
-	}
+	idecl.Spec.Rparen = offset
+	offset++
 
-	return idecl.Spec, offset
+	return idecl.Spec, offset, newLines
 }
 
-func BuildImportDecls(fset *token.FileSet, node *ast.File, defaultImports ImportDecl, namedImports []ImportDecl) []ast.Decl {
+func BuildImportDecls(fset *token.FileSet, imports []ImportDecl) ([]ast.Decl, []int) {
 	var decls []ast.Decl
+	if len(imports) == 0 {
+		return nil, nil
+	}
 
-	offset := defaultImports.Spec.Pos()
-	for _, d := range append([]ImportDecl{defaultImports}, namedImports...) {
-		decl, newOffset := BuildDecl(fset, node, offset, d)
+	offset := imports[0].Spec.Pos()
+	offsetBase := fset.File(offset).Base()
+
+	var newLines []int
+	for _, d := range imports {
+		decl, newOffset, nl := BuildDecl(fset, offset, d)
+		newLines = append(newLines, nl...)
 		decls = append(decls, decl)
 		offset = newOffset
 	}
 
-	return decls
+	localisedLines := make([]int, len(newLines))
+	for i, l := range newLines {
+		localisedLines[i] = l - offsetBase
+	}
+	return decls, localisedLines
+}
+
+func TruePosRange(node ast.Node) posRange {
+	var start, end token.Pos
+
+	switch n := node.(type) {
+	case *ast.GenDecl:
+		if n.Doc != nil {
+			start = n.Doc.Pos()
+		} else {
+			start = n.Pos()
+		}
+
+		if n.Lparen == token.NoPos {
+			r := TruePosRange(n.Specs[0])
+			end = r.end
+		} else{
+			end = n.End()
+		}
+	case *ast.ImportSpec:
+		if n.Doc != nil {
+			start = n.Doc.Pos()
+		} else {
+			start = n.Pos()
+		}
+		if n.Comment != nil {
+			end = n.Comment.End()
+		} else {
+			end = n.End()
+		}
+	default:
+		start = n.Pos()
+		end = n.End()
+	}
+
+	return posRange{start, end}
+}
+
+func FindAllIndexes(s string, c string) []int {
+	var r []int
+	for i:=0; i<len(s); {
+		if idx := strings.Index(s[i:], c); idx >= 0 {
+			r = append(r, i+idx)
+			i += idx + len(c)
+		} else {
+			break
+		}
+	}
+	return r
+
 }

@@ -28,14 +28,22 @@ func AdjustImportSpecPos(delta token.Pos, spec *ast.ImportSpec) {
 	AdjustCommentGroupPos(delta, spec.Comment)
 }
 
+func aa(spec *ast.GenDecl)  {
+
+}
+
 func AdjustGenDeclPos(delta token.Pos, spec *ast.GenDecl) {
 	if spec == nil {
 		return
 	}
 
 	spec.TokPos += delta
-	spec.Lparen += delta
-	spec.Rparen += delta
+	if spec.Lparen > 0 {
+		spec.Lparen += delta
+	}
+	if spec.Rparen > 0 {
+		spec.Rparen += delta
+	}
 }
 
 func AdjustCommentGroupPos(delta token.Pos, cg *ast.CommentGroup) {
@@ -140,35 +148,50 @@ func FileSpliceLines(f *token.File, newLines []int) bool {
 		return true
 	}
 	lines := FileGetLines(f)
+	merged := mergeSortedListsUniq(lines, newLines, f.Size())
+	return f.SetLines(merged)
+}
 
-	maxI := len(lines)
-	maxJ := len(newLines)
+// lists must contain only integers i.e > 0.
+func mergeSortedListsUniq(aList, bList []int, max int) []int {
+	lenA := len(aList)
+	lenB := len(bList)
 
-	resultLines := make([]int, 0, maxI+maxJ)
-	i, j := 0, 0
+	result := make([]int, 0, lenA+lenB)
 
-	for ; i < maxI || j < maxJ ; {
-		if j >= maxJ {
-			resultLines = append(resultLines, lines[i])
-			i++
-		} else if i >= maxI {
-			resultLines = append(resultLines, newLines[j])
-			j++
-		} else if lines[i] > newLines[j] {
-			resultLines = append(resultLines, newLines[j])
-			j++
-			continue
-		} else if lines[i] < newLines[j] {
-			resultLines = append(resultLines, lines[i])
-			i++
-			continue
+	a, b, prevValue := 0, 0, 0
+	for ; a < lenA || b < lenB ; {
+		value := 0
+
+		// If within bounds of both lists.
+		if a < lenA && b < lenB {
+			if aList[a] > bList[b] {
+				value = bList[b]
+				b++
+			} else if aList[a] < bList[b] {
+				value = aList[a]
+				a++
+			} else { // Equality
+				value = aList[a]
+				a++
+				b++
+			}
 		} else {
-			resultLines = append(resultLines, lines[i])
-			i++
-			j++
-			continue
+			if a >= lenA {
+				value = bList[b]
+				b++
+			} else if b >= lenB {
+				value = aList[a]
+				a++
+			}
+		}
+
+		// Ensure no duplicate elements.
+		if value != prevValue && value < max {
+			result = append(result, value)
+			prevValue = value
 		}
 	}
 
-	return f.SetLines(resultLines)
+	return result
 }
