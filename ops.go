@@ -217,32 +217,32 @@ func BuildDecl(fset *token.FileSet, offset token.Pos, idecl ImportDecl) (ast.Dec
 	newLines = append(newLines, int(offset))
 	offset++
 
-	//if idecl.FloatingComments != nil || idecl.WidowComments != nil {
-	//	if idecl.Doc == nil {
-	//		idecl.Doc = &ast.CommentGroup{}
-	//	}
-	//
-	//	var newList []*ast.Comment
-	//	curList := idecl.Doc.List
-	//	for _, cg := range idecl.FloatingComments {
-	//		newList = append(newList, cg.List...)
-	//	}
-	//	newList = append(newList, curList...)
-	//	for _, cg := range idecl.WidowComments {
-	//		newList = append(newList, cg.List...)
-	//	}
-	//
-	//	// Adjust comment positions, so that they are relatively correct.
-	//	// They will be shifted into correct place later.
-	//	commentOffset := token.Pos(1)
-	//	for _, c := range newList {
-	//		c.Slash = commentOffset
-	//
-	//		cRange := TruePosRange(c)
-	//		commentOffset += (cRange.end - cRange.start) + 2
-	//	}
-	//	idecl.Doc.List = newList
-	//}
+	if idecl.FloatingComments != nil || idecl.WidowComments != nil {
+		if idecl.Doc == nil {
+			idecl.Doc = &ast.CommentGroup{}
+		}
+
+		var newList []*ast.Comment
+		curList := idecl.Doc.List
+		for _, cg := range idecl.FloatingComments {
+			newList = append(newList, cg.List...)
+		}
+		newList = append(newList, curList...)
+		for _, cg := range idecl.WidowComments {
+			newList = append(newList, cg.List...)
+		}
+
+		// Adjust comment positions, so that they are relatively correct.
+		// They will be shifted into correct place later.
+		commentOffset := token.Pos(1)
+		for _, c := range newList {
+			c.Slash = commentOffset
+
+			cRange := TruePosRange(c)
+			commentOffset += (cRange.end - cRange.start) + 2
+		}
+		idecl.Doc.List = newList
+	}
 
 	// Place the comment at the offset.
 	if idecl.Doc != nil {
@@ -250,20 +250,20 @@ func BuildDecl(fset *token.FileSet, offset token.Pos, idecl ImportDecl) (ast.Dec
 		for _, c := range idecl.Doc.List {
 			// Ensure all comments start from new line.
 			newLines = append(newLines, int(c.Pos()))
-			hasNewlines := false
+			// All newlines inside the comments need to be preserved otherwise printer will not be happy.
 			for _, idx := range FindAllIndexes(c.Text, "\n") {
-				hasNewlines = true
 				newLines = append(newLines, int(c.Pos()) + idx)
-			}
-			if hasNewlines {
-				newLines = append(newLines, int(c.End()) + 1)
 			}
 		}
 		offset = idecl.Doc.End() + 1
 		idecl.Spec.Doc = idecl.Doc
+
 	}
 
+	// Ensure declaration starts from a new line.
+	newLines = append(newLines, int(offset))
 	AdjustGenDeclPos(offset-idecl.Spec.Pos(), idecl.Spec)
+
 
 	offset = idecl.Spec.TokPos + 7 + 1
 	if idecl.Spec.Lparen != 0 {

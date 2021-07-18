@@ -4,7 +4,7 @@ package main
 // Random comment 2
 
 // No default import group.
-import (
+import (// comment a (this one can get lost)...
 "a"
 // comment b
 "b"
