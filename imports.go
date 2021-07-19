@@ -67,7 +67,7 @@ func RewriteImports(filename string, src []byte, rewriter ImportOrganizer) ([]by
 	}
 
 	importDeclRange.Decls = rewriter(importDeclRange.Decls)
-	importDecls, newLines, importEndPos := BuildImportDecls(fset, importDeclRange.Start, importDeclRange.Decls)
+	importDecls, newLines, importEndPos := BuildImportDecls(importDeclRange.Start, importDeclRange.Decls)
 
 	importString := PrintImportDecls(
 		importBase, importEndPos, newLines, importDecls,

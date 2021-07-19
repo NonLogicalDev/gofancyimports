@@ -22,7 +22,7 @@ type (
 	}
 )
 
-func GatherComments(fset *token.FileSet, comments []*ast.CommentGroup, startPos, endPos token.Pos) CommentRange {
+func GatherComments(comments []*ast.CommentGroup, startPos, endPos token.Pos) CommentRange {
 	result := CommentRange{}
 
 	for _, c := range comments {
@@ -150,7 +150,7 @@ func GatherImportDecls(fset *token.FileSet, nodeDecls []ast.Decl, nodeComments [
 	}
 	return ImportDeclRange{
 		Decls: importDecls,
-		Comments: GatherComments(fset, nodeComments, firstPos, lastPos),
+		Comments: GatherComments(nodeComments, firstPos, lastPos),
 
 		Start: firstPos,
 		End:   lastPos,
@@ -158,7 +158,7 @@ func GatherImportDecls(fset *token.FileSet, nodeDecls []ast.Decl, nodeComments [
 	}, nonImportDecls
 }
 
-func BuildImportDecl(fset *token.FileSet, offset token.Pos, addNewline bool, idecl ImportDecl) (ast.Decl, []token.Pos, token.Pos)  {
+func BuildImportDecl(offset token.Pos, idecl ImportDecl) (ast.Decl, []token.Pos, token.Pos)  {
 	var newLines []token.Pos
 
 	if idecl.FloatingComments != nil || idecl.WidowComments != nil {
@@ -259,18 +259,19 @@ func BuildImportDecl(fset *token.FileSet, offset token.Pos, addNewline bool, ide
 	return idecl.spec, newLines, offset
 }
 
-func BuildImportDecls(fset *token.FileSet, offset token.Pos, idecls []ImportDecl) ([]ast.Decl, []token.Pos, token.Pos) {
+func BuildImportDecls(offset token.Pos, idecls []ImportDecl) ([]ast.Decl, []token.Pos, token.Pos) {
 	var decls []ast.Decl
 	if len(idecls) == 0 {
 		return nil, nil, 0
 	}
 
 	var newLines []token.Pos
-	for i, d := range idecls {
-		decl, nl, newOffset := BuildImportDecl(fset, offset, i != 0, d)
+	for _, d := range idecls {
+		decl, nl, newOffset := BuildImportDecl(offset, d)
 		newLines = append(newLines, nl...)
 		decls = append(decls, decl)
 		offset = newOffset
 	}
+
 	return decls, newLines, offset
 }
