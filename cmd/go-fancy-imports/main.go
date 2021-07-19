@@ -2,19 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/NonLogicalDev/gofancyimports/internal/diff"
 	"os"
 
-	gofancyimports "github.com/NonLogicalDev/gofancyimports"
 	"github.com/spf13/cobra"
+
+	gofancyimports "github.com/NonLogicalDev/gofancyimports"
+	"github.com/NonLogicalDev/gofancyimports/internal/diff"
 )
-
-
-func checkErr(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
 
 func main() {
 	cmd := cobra.Command{
@@ -34,40 +28,46 @@ func main() {
 	)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		sourcePath := args[0]
-		LocalPrefixes = *localPrefixes
+		for _, sourcePath := range args {
+			LocalPrefixes = *localPrefixes
 
-		src, err := os.ReadFile(sourcePath)
-		if err != nil { return err }
-
-		// OrganizeImports is the import rewriter defined in `rules.go`.
-		newSrc, err := gofancyimports.RewriteImports(sourcePath, src, OrganizeImports)
-		if err != nil { return err }
-
-		// Print diff.
-		if *showDiff {
-			diffOut, err := diff.Diff("", src, newSrc)
+			src, err := os.ReadFile(sourcePath)
 			if err != nil { return err }
 
-			diffOut, err = diff.ReplaceTempFilename(diffOut, sourcePath)
+			var newSrc []byte
+
+			// OrganizeImports is the import rewriter defined in `rules.go`.
+			newSrc, err = gofancyimports.RewriteImports(sourcePath, src, OrganizeImports)
 			if err != nil { return err }
 
-			fmt.Println(string(diffOut))
-			return nil
+			// Print diff.
+			if *showDiff {
+				diffOut, err := diff.Diff("", src, newSrc)
+				if err != nil { return err }
+
+				diffOut, err = diff.ReplaceTempFilename(diffOut, sourcePath)
+				if err != nil { return err }
+
+				fmt.Println(string(diffOut))
+				continue
+			}
+
+			// Print source.
+			if !*flagWrite {
+				fmt.Println(">>> ", sourcePath)
+				fmt.Println(string(newSrc))
+				continue
+			}
+
+			// Write back.
+			err = os.WriteFile(sourcePath, newSrc, 0x666)
+			if err != nil {
+				return err
+			}
+
+			fmt.Println("Written:", sourcePath)
 		}
 
-		// Print source.
-		if !*flagWrite {
-			fmt.Println(string(newSrc))
-			return nil
-		}
-
-		// Write back.
-		err = os.WriteFile(sourcePath, newSrc, 0x666)
-		if err != nil {
-			return err
-		}
-		fmt.Println("Written:", sourcePath)
 		return nil
 	}
 

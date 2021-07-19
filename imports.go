@@ -59,12 +59,12 @@ func RewriteImports(filename string, src []byte, rewriter ImportOrganizer) ([]by
 	f := fset.File(node.Package)
 
 	importDeclRange, _ := GatherImportDecls(fset, node.Decls, node.Comments)
-	importBase := importDeclRange.Base
 
+	// If importBase is not set, there are no import blocks.
+	importBase := importDeclRange.Base
 	if importBase <= 0 {
 		return src, nil
 	}
-
 
 	importDeclRange.Decls = rewriter(importDeclRange.Decls)
 	importDecls, newLines, importEndPos := BuildImportDecls(fset, importDeclRange.Start, importDeclRange.Decls)
@@ -73,8 +73,11 @@ func RewriteImports(filename string, src []byte, rewriter ImportOrganizer) ([]by
 		importBase, importEndPos, newLines, importDecls,
 	)
 
-	var output []byte
+	offsetStart := f.Offset(importDeclRange.Start)
+	offsetEnd := f.Offset(importDeclRange.End)
+	fullFileSize := offsetStart + len(importString) + (len(src) - offsetEnd)
 
+	output := make([]byte, 0, fullFileSize)
 	output = append(output, src[:f.Offset(importDeclRange.Start)]...)
 	output = append(output, importString...)
 	output = append(output, src[f.Offset(importDeclRange.End):]...)
