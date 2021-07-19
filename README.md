@@ -1,5 +1,66 @@
 # Framework for Re-Formatting GoLang Imports according to your desire.
 
+## Get the ready to use tool:
+
+If all you need is an import sorting tool that will magically fix your import order to a consistent opinionated convention, grab a copy of the built in tool.
+
+```
+go get -u github.com/NonLogicalDev/gofancyimports/cmd/gofancyimports
+
+# gofancyimports [--local <local-prefix>] [--write] [--diff] [files...]
+
+gofancyimports --local "github.com/NonLogicalDev" _examples/ex.go
+```
+
+```go
+// --------------------------------------------------------------------------------
+// Transforms this:
+// --------------------------------------------------------------------------------
+
+import (
+	"github.com/sanity-io/litter"
+	"flag"
+)
+
+import (
+	_ "net/http/pprof"
+	"os"
+	"strconv"
+	"gen/mocks/github.com/go-redis/redis"
+	"github.com/go-redis/redis"
+	"strings"
+	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+)
+
+// --------------------------------------------------------------------------------
+// Into this:
+// --------------------------------------------------------------------------------
+
+import (
+	"flag"
+	"os"
+	"strconv"
+	"strings"
+
+	"gen/mocks/github.com/go-redis/redis"
+
+	"github.com/go-redis/redis"
+	"github.com/sanity-io/litter"
+
+	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+
+	_ "net/http/pprof"
+)
+
+```
+
+- - - - - -
+
+## 📘📘📘 If you wish to implement your own import sorter, read on: 📘📘📘
+
+
+## Background:
+
 There are plenty of tools for formatting GoLang. Most of them do a fairly good
 job at tidying up imports.  However they tend to think of imports rather
 simplistically.
