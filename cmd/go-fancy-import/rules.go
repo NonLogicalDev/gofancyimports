@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/nonlogicaldev/gofancyimports/internal/stdlib"
+	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
 	"sort"
 	"strconv"
 	"strings"
 
-	gofancyimports "github.com/nonlogicaldev/gofancyimports"
+	gofancyimports "github.com/NonLogicalDev/gofancyimports"
 )
 
 func OrganizeImports(decls []gofancyimports.ImportDecl) []gofancyimports.ImportDecl {

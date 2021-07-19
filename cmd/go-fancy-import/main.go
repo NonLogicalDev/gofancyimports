@@ -6,7 +6,7 @@ import (
 	"go/token"
 	"os"
 
-	gofancyimports "github.com/nonlogicaldev/gofancyimports"
+	gofancyimports "github.com/NonLogicalDev/gofancyimports"
 	"github.com/spf13/cobra"
 )
 

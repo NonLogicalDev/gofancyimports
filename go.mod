@@ -1,4 +1,4 @@
-module github.com/nonlogicaldev/gofancyimports
+module github.com/NonLogicalDev/gofancyimports
 
 go 1.16
 
