@@ -15,43 +15,41 @@ import (
 // https://github.com/golang/tools/blob/6e9046bfcd34178dc116189817430a2ad1ee7b43/internal/imports/sortimports.go#L63
 
 type (
-	ImportDeclRange struct{
-		Decls    []ImportDecl
-		Comments CommentRange
+	// ImportOrganizer is a function that allows reordering merging
+	// and splitting existing ImportDecl's obtained from source.
+	ImportOrganizer func(decls []ImportDecl) []ImportDecl
 
-		Start token.Pos
-		End   token.Pos
-		Base  int
-	}
-
-	CommentRange struct {
-		Before []*ast.CommentGroup
-		Inside []*ast.CommentGroup
-		After  []*ast.CommentGroup
-	}
-
+	// ImportDecl represents a single import block, a 1:1 mapping.
 	ImportDecl struct {
-		// Comments that are floating above this declaration, yet in the middle of import blocks.
+		// FloatingComments comments that are floating above
+		// this declaration, yet in the middle of import blocks.
 		FloatingComments []*ast.CommentGroup
 
-		// Comments that are floating inside this declaration unattached to specs.
+		// WidowComments are comments that are floating inside this declaration unattached to specs.
 		WidowComments []*ast.CommentGroup
 
+		// Doc is the doc comment for this import gropup.
 		Doc    *ast.CommentGroup
 		Groups []ImportSpecGroup
 
 		spec   *ast.GenDecl
 	}
 
+	// ImportSpecGroup maps to set of consecutive import specs delimited by
+	// whitespace and potentially having a doc comment.
+	//
+	// This type is the powerhouse of this package, allowing easy operation
+	// on sets of imports, delimited by whitespace.
+	//
+	// Contained within an ImportDecl.
 	ImportSpecGroup struct {
-		Doc *ast.CommentGroup
+		Doc   *ast.CommentGroup
 		Specs []*ast.ImportSpec
 	}
-
-	ImportOrganizer func(decls []ImportDecl) []ImportDecl
 )
 
-
+// RewriteImports takes same arguments as `go/parser.ParseFile` with an addition of `rewriter`
+// and returns original source with imports grouping modified according to the rewriter.
 func RewriteImports(filename string, src []byte, rewriter ImportOrganizer) ([]byte, error) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, filename, src, parser.ParseComments)

@@ -5,6 +5,23 @@ import (
 	"go/token"
 )
 
+type (
+	ImportDeclRange struct{
+		Decls    []ImportDecl
+		Comments CommentRange
+
+		Start token.Pos
+		End   token.Pos
+		Base  int
+	}
+
+	CommentRange struct {
+		Before []*ast.CommentGroup
+		Inside []*ast.CommentGroup
+		After  []*ast.CommentGroup
+	}
+)
+
 func GatherComments(fset *token.FileSet, comments []*ast.CommentGroup, startPos, endPos token.Pos) CommentRange {
 	result := CommentRange{}
 
