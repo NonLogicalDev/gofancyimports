@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	"go/printer"
 	"go/token"
 	"sort"
 	"strings"
@@ -15,10 +14,40 @@ type posRange struct {
 	End   token.Pos
 }
 
-func PrintNodeString(fset *token.FileSet, node interface{}) string {
-	b := bytes.NewBuffer(nil)
-	_ = printer.Fprint(b, fset, node)
-	return b.String()
+func truePosRange(node ast.Node) posRange {
+	var start, end token.Pos
+
+	switch n := node.(type) {
+	case *ast.GenDecl:
+		if n.Doc != nil {
+			start = n.Doc.Pos()
+		} else {
+			start = n.Pos()
+		}
+
+		if n.Lparen == token.NoPos {
+			r := truePosRange(n.Specs[0])
+			end = r.End
+		} else{
+			end = n.End()
+		}
+	case *ast.ImportSpec:
+		if n.Doc != nil {
+			start = n.Doc.Pos()
+		} else {
+			start = n.Pos()
+		}
+		if n.Comment != nil {
+			end = n.Comment.End()
+		} else {
+			end = n.End()
+		}
+	default:
+		start = n.Pos()
+		end = n.End()
+	}
+
+	return posRange{start, end}
 }
 
 func adjustImportSpecPos(delta token.Pos, spec *ast.ImportSpec) {
@@ -157,15 +186,3 @@ func ConvertLinePosToOffsets(base int, lines []token.Pos) []int {
 	}
 	return result
 }
-
-//func findLastIndexLessThen(l []int, max int) int {
-//	lastIdx := -1
-//	for idx, e := range l {
-//		if e < max {
-//			lastIdx = idx
-//		} else {
-//			break
-//		}
-//	}
-//	return lastIdx
-//}

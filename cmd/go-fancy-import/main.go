@@ -2,22 +2,12 @@ package main
 
 import (
 	"fmt"
-	"go/parser"
-	"go/token"
 	"os"
 
 	gofancyimports "github.com/NonLogicalDev/gofancyimports"
 	"github.com/spf13/cobra"
 )
 
-// https://github.com/golang/tools/blob/6e9046bfcd34178dc116189817430a2ad1ee7b43/internal/imports/sortimports.go#L63
-
-// NOTE:
-//   node.
-//    Decls[].
-//      (*ast.GenDecl, _.Tok == token.IMPORT).
-//    Specs[].
-//      (*ast.ImportSpec).
 
 func checkErr(err error) {
 	if err != nil {
@@ -33,44 +23,31 @@ func main() {
 	}
 
 	flagWrite := cmd.PersistentFlags().BoolP("write", "w", false, "write the file back?")
+	localPrefixes := cmd.PersistentFlags().StringArrayP("local", "l", nil, "list of local prefixes")
+
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		sourcePath := args[0]
+		LocalPrefixes = *localPrefixes
 
 		src, err := os.ReadFile(sourcePath)
 		if err != nil { return err }
 
-		fset := token.NewFileSet()
-		node, err := parser.ParseFile(fset, sourcePath, src, parser.ParseComments)
+		newSrc, err := gofancyimports.RewriteImports(sourcePath, src, func(decls []gofancyimports.ImportDecl) []gofancyimports.ImportDecl {
+			//fmt.Fprintln(os.Stderr, litter.Sdump(decls))
+			return OrganizeImports(decls)
+		})
 		if err != nil { return err }
 
-		importDeclRange, _ := gofancyimports.GatherImportDecls(fset, node.Decls, node.Comments)
-		importBase := importDeclRange.Base
-		if importDeclRange.Base > 0 {
-			importDeclRange.Decls = OrganizeImports(importDeclRange.Decls)
-			importDecls, newLines, importEndPos := gofancyimports.BuildImportDecls(fset, importDeclRange.Start, importDeclRange.Decls)
-
-			importString := gofancyimports.PrintImportDecls(
-				importBase, importEndPos, newLines, importDecls,
-			)
-
-			var output []byte
-
-			f := fset.File(node.Package)
-			output = append(output, src[:f.Offset(importDeclRange.Start)-1]...)
-			output = append(output, importString...)
-			output = append(output, src[f.Offset(importDeclRange.End)+1:]...)
-
-
-			if !*flagWrite {
-				fmt.Println(string(output))
-				return nil
-			}
-
-			return os.WriteFile(sourcePath, output, 0x666)
-		} else {
-			fmt.Println("WEIRD:", sourcePath)
+		if !*flagWrite {
+			fmt.Println(string(newSrc))
+			return nil
 		}
-		
+
+		err = os.WriteFile(sourcePath, newSrc, 0x666)
+		if err != nil {
+			return err
+		}
+		fmt.Println("Written:", sourcePath)
 		return nil
 	}
 

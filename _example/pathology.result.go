@@ -4,8 +4,8 @@ package main
 // Random comment 2
 
 // No default import group.
-import (// Random widow comment
-
+// Random widow comment
+import (
 	"a"
 
 	// comment b

@@ -3,11 +3,12 @@ package gofancyimports
 import (
 	"bytes"
 	"fmt"
-	"github.com/sanity-io/litter"
 	"go/ast"
 	"go/printer"
 	"go/token"
 	"os"
+
+	"github.com/sanity-io/litter"
 )
 
 func PrintNode(fset *token.FileSet, node interface{}, dump bool) {

@@ -1,13 +1,15 @@
 package main
 
 import (
-	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
 	"sort"
 	"strconv"
 	"strings"
 
-	gofancyimports "github.com/NonLogicalDev/gofancyimports"
+	"github.com/NonLogicalDev/gofancyimports"
+	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
 )
+
+var LocalPrefixes []string
 
 func OrganizeImports(decls []gofancyimports.ImportDecl) []gofancyimports.ImportDecl {
 	var (
@@ -47,6 +49,7 @@ func OgranizeImportGroups(groups []gofancyimports.ImportSpecGroup) []gofancyimpo
 
 		defaultStdGroup        gofancyimports.ImportSpecGroup
 		defaultNoDotGroup      gofancyimports.ImportSpecGroup
+		defaultLocalGroup      gofancyimports.ImportSpecGroup
 		defaultThridPartyGroup gofancyimports.ImportSpecGroup
 		defaultEffectGropup    gofancyimports.ImportSpecGroup
 
@@ -77,6 +80,8 @@ func OgranizeImportGroups(groups []gofancyimports.ImportSpecGroup) []gofancyimpo
 				defaultStdGroup.Specs = append(defaultStdGroup.Specs, s)
 			} else if strings.Index(sPathParts[0], ".") == -1 {
 				defaultNoDotGroup.Specs = append(defaultNoDotGroup.Specs, s)
+			} else if hasLocalPrefix(sPath) {
+				defaultLocalGroup.Specs = append(defaultLocalGroup.Specs, s)
 			} else {
 				defaultThridPartyGroup.Specs = append(defaultThridPartyGroup.Specs, s)
 			}
@@ -90,6 +95,9 @@ func OgranizeImportGroups(groups []gofancyimports.ImportSpecGroup) []gofancyimpo
 		}
 		if len(defaultThridPartyGroup.Specs) > 0 {
 			result = append(result, defaultThridPartyGroup)
+		}
+		if len(defaultLocalGroup.Specs) > 0 {
+			result = append(result, defaultLocalGroup)
 		}
 	}
 
@@ -108,4 +116,13 @@ func OgranizeImportGroups(groups []gofancyimports.ImportSpecGroup) []gofancyimpo
 	}
 
 	return result
+}
+
+func hasLocalPrefix(path string) bool {
+	for _, pref := range LocalPrefixes {
+		if strings.HasPrefix(path, pref) {
+			return true
+		}
+	}
+	return false
 }
