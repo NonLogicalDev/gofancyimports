@@ -1,6 +1,7 @@
-package main
+package reorganizer
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -10,10 +11,37 @@ import (
 	"github.com/NonLogicalDev/gofancyimports/internal/diff"
 )
 
-func main() {
-	cmd := cobra.Command{
-		Use: "go-fancy-imports",
+type ArgHook func(cmd *cobra.Command) func(cmd *cobra.Command, args []string)
 
+type Config struct {
+	commandName string
+	argHook     ArgHook
+}
+
+type Option func(c *Config)
+
+func WithArgHook(hook ArgHook) Option {
+	return func(c *Config) {
+		c.argHook = hook
+	}
+}
+
+func WithCommandName(name string) Option {
+	return func(c *Config) {
+		c.commandName = name
+	}
+}
+
+func RunCmd(ctx context.Context, rewriter gofancyimports.ImportOrganizer, opts ...Option) error {
+	cfg := &Config{
+		commandName: "go-fancy-imports",
+	}
+	for _, o := range opts {
+		o(cfg)
+	}
+
+	cmd := &cobra.Command{
+		Use: cfg.commandName,
 		Args: cobra.MinimumNArgs(1),
 	}
 	cmdFlags := cmd.PersistentFlags()
@@ -23,21 +51,27 @@ func main() {
 			BoolP("write", "w", false, "write the file back?")
 		showDiff  = cmdFlags.
 			BoolP("diff", "d", false, "print diff")
-		localPrefixes = cmdFlags.
-			StringArrayP("local", "l", nil, "list of local prefixes")
+		//localPrefixes = cmdFlags.
+		//	StringArrayP("local", "l", nil, "list of local prefixes")
 	)
+
+	var execHook func(cmd *cobra.Command, args []string)
+	if cfg.argHook != nil {
+		execHook = cfg.argHook(cmd)
+	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		for _, sourcePath := range args {
-			LocalPrefixes = *localPrefixes
+			if execHook != nil {
+				execHook(cmd, args)
+			}
 
 			src, err := os.ReadFile(sourcePath)
 			if err != nil { return err }
 
 			var newSrc []byte
 
-			// OrganizeImports is the import rewriter defined in `rules.go`.
-			newSrc, err = gofancyimports.RewriteImports(sourcePath, src, OrganizeImports)
+			newSrc, err = gofancyimports.RewriteImports(sourcePath, src, rewriter)
 			if err != nil { return err }
 
 			// Print diff.
@@ -71,7 +105,5 @@ func main() {
 		return nil
 	}
 
-	if err := cmd.Execute(); err != nil {
-		panic(err)
-	}
+	return cmd.ExecuteContext(ctx)
 }

@@ -1,14 +1,16 @@
 package main
 
 import (
+	"context"
+	"github.com/spf13/cobra"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/NonLogicalDev/gofancyimports"
-	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+	"github.com/NonLogicalDev/gofancyimports/pkg/stdlib"
+	"github.com/NonLogicalDev/gofancyimports/cmd/reorganizer"
 )
-
 
 /*
 --------------------------------------------------------------------------------
@@ -50,10 +52,28 @@ import (
 	_ "net/http/pprof"
 )
 
- */
-
+*/
 
 var LocalPrefixes []string
+
+func main() {
+	err := reorganizer.RunCmd(
+		context.Background(),
+		OrganizeImports,
+		reorganizer.WithCommandName("gofancyimports"),
+		reorganizer.WithArgHook(func(cmd *cobra.Command) func(cmd *cobra.Command, args []string) {
+			localPrefixesFlag := cmd.PersistentFlags().
+				StringArrayP("local", "l", nil, "local imports prefixes to put in a separate group")
+
+			return func(cmd *cobra.Command, args []string) {
+				LocalPrefixes = *localPrefixesFlag
+			}
+		},
+	))
+	if err != nil {
+		panic(err)
+	}
+}
 
 func OrganizeImports(decls []gofancyimports.ImportDecl) []gofancyimports.ImportDecl {
 	var (

@@ -99,8 +99,7 @@ func RewriteImports(filename string, src []byte, rewriter ImportOrganizer) ([]by
 ```
 
 You can see the ease of use of this by having a look at:
-* [go-fancy-imports/main.go](./cmd/go-fancy-imports/main.go)
-* [go-fancy-imports/rules.go](./cmd/go-fancy-imports/rules.go)
+* [gofancyimports/main.go](./cmd/gofancyimports/main.go)
 
 
 # Appendix:
