@@ -213,13 +213,17 @@ func GatherImportDecls(fset *token.FileSet, nodeDecls []ast.Decl, nodeComments [
 		d.Spec.Doc = nil
 	}
 
+	basePos := 0
+	if firstPos != token.NoPos {
+		basePos = fset.File(firstPos).Base()
+	}
 	return ImportDeclRange{
 		Decls: importDecls,
 		Comments: GatherComments(fset, nodeComments, firstPos, lastPos),
 
 		Start: firstPos,
 		End:   lastPos,
-		Base:  fset.File(firstPos).Base(),
+		Base:  basePos,
 	}, nonImportDecls
 }
 

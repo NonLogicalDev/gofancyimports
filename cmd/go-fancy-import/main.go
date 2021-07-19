@@ -45,28 +45,33 @@ func main() {
 
 		importDeclRange, _ := gofancyimports.GatherImportDecls(fset, node.Decls, node.Comments)
 		importBase := importDeclRange.Base
+		if importDeclRange.Base > 0 {
+			importDeclRange.Decls = OrganizeImports(importDeclRange.Decls)
+			importDecls, newLines, importEndPos := gofancyimports.BuildImportDecls(fset, importDeclRange.Start, importDeclRange.Decls)
 
-		importDeclRange.Decls = OrganizeImports(importDeclRange.Decls)
-		importDecls, newLines, importEndPos := gofancyimports.BuildImportDecls(fset, importDeclRange.Start, importDeclRange.Decls)
+			importString := gofancyimports.PrintImportDecls(
+				importBase, importEndPos, newLines, importDecls,
+			)
 
-		importString := gofancyimports.PrintImportDecls(
-			importBase, importEndPos, newLines, importDecls,
-		)
+			var output []byte
 
-		var output []byte
-
-		f := fset.File(node.Package)
-		output = append(output, src[:f.Offset(importDeclRange.Start)-1]...)
-		output = append(output, importString...)
-		output = append(output, src[f.Offset(importDeclRange.End)+1:]...)
+			f := fset.File(node.Package)
+			output = append(output, src[:f.Offset(importDeclRange.Start)-1]...)
+			output = append(output, importString...)
+			output = append(output, src[f.Offset(importDeclRange.End)+1:]...)
 
 
-		if !*flagWrite {
-			fmt.Println(string(output))
-			return nil
+			if !*flagWrite {
+				fmt.Println(string(output))
+				return nil
+			}
+
+			return os.WriteFile(sourcePath, output, 0x666)
+		} else {
+			fmt.Println("WEIRD:", sourcePath)
 		}
-
-		return os.WriteFile(sourcePath, output, 0x666)
+		
+		return nil
 	}
 
 	if err := cmd.Execute(); err != nil {

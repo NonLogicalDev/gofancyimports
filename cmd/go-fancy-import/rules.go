@@ -1,10 +1,12 @@
 package main
 
 import (
-	gofancyimports "github.com/nonlogicaldev/gofancyimports"
 	"github.com/nonlogicaldev/gofancyimports/internal/stdlib"
 	"sort"
 	"strconv"
+	"strings"
+
+	gofancyimports "github.com/nonlogicaldev/gofancyimports"
 )
 
 func OrganizeImports(decls []gofancyimports.ImportDecl) []gofancyimports.ImportDecl {
@@ -44,6 +46,7 @@ func OgranizeImportGroups(groups []gofancyimports.ImportSpecGroup) []gofancyimpo
 		defaultGroups []gofancyimports.ImportSpecGroup
 
 		defaultStdGroup        gofancyimports.ImportSpecGroup
+		defaultNoDotGroup      gofancyimports.ImportSpecGroup
 		defaultThridPartyGroup gofancyimports.ImportSpecGroup
 		defaultEffectGropup    gofancyimports.ImportSpecGroup
 
@@ -67,10 +70,13 @@ func OgranizeImportGroups(groups []gofancyimports.ImportSpecGroup) []gofancyimpo
 		defaultGroup := gofancyimports.MergeImportGroups(defaultGroups)
 		for _, s := range defaultGroup.Specs {
 			sPath, _ := strconv.Unquote(s.Path.Value)
+			sPathParts := strings.Split(sPath, "/")
 			if s.Name != nil && s.Name.Name == "_" {
 				defaultEffectGropup.Specs = append(defaultEffectGropup.Specs, s)
 			} else if stdlib.IsStdlib(sPath) {
 				defaultStdGroup.Specs = append(defaultStdGroup.Specs, s)
+			} else if strings.Index(sPathParts[0], ".") == -1 {
+				defaultNoDotGroup.Specs = append(defaultNoDotGroup.Specs, s)
 			} else {
 				defaultThridPartyGroup.Specs = append(defaultThridPartyGroup.Specs, s)
 			}
@@ -78,6 +84,9 @@ func OgranizeImportGroups(groups []gofancyimports.ImportSpecGroup) []gofancyimpo
 
 		if len(defaultStdGroup.Specs) > 0 {
 			result = append(result, defaultStdGroup)
+		}
+		if len(defaultNoDotGroup.Specs) > 0 {
+			result = append(result, defaultNoDotGroup)
 		}
 		if len(defaultThridPartyGroup.Specs) > 0 {
 			result = append(result, defaultThridPartyGroup)
