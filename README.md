@@ -27,9 +27,9 @@ If only you did not have to reinvent the bycicle (write logic for aligning comme
 
 ## Solution `gofancyimports`
 
-This tool takes away the difficulty from dealing with floating comments, and whitespace between import spec groupings, by exposing import declarations and groupings as simple structs that you can modify at will.  All of the complexity of rebuilding the imports to your spec represented by those structs is taken care of.
+This framework takes away the difficulty from dealing with floating comments, and whitespace between import spec groupings, by exposing import declarations and groupings as simple structs that you can modify at will.  All of the complexity of rebuilding the imports to your spec represented by those structs is taken care of.
 
-This tool can understand import clauses like this, all comments in this example are exposed structuraly and when rendered to string are properly positioned, no matter how you reorder the import groups.
+This framework can understand import clauses like this, all comments in this example are exposed structuraly and when rendered to string are properly positioned, no matter how you reorder the import groups.
 
 ```go
 

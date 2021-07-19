@@ -68,3 +68,13 @@ import (// Random widow comment
 	// comment g2
 	"g2"
 )
+
+func main() {
+	_ = a.t
+	_ = b.t
+	_ = c.t
+	_ = d.t
+	_ = e.t
+	_ = f.t
+	_ = g.t
+}

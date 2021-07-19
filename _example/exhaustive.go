@@ -5,7 +5,7 @@ package main
 
 // (group 1) this is a lonely single element grouping.
 import (
-	"flag/parser"
+	"go/format"
 )
 
 // (middle 1) [this comment says something about imports that follow?] [should pull up to the top]
@@ -44,19 +44,19 @@ import (
 
 // (group 3) [this is a comment describing import group] [this should cause the group to stay]
 import (
-	"a"
+	"bytes"
 
 	/*
 	   (group 3 mid) multiline p1
 	*/
 
-	"b"
+	"strings"
 
 	/*
 	   (group 3 mid) multiline p2
 	*/
 
-	"c"
+	"strconv"
 
 	/*
 		(mid-import 2) [what does this even mean?]
@@ -85,12 +85,16 @@ func main() {
 		_ = gtoken.FileSet{}
 		_ = os.Args
 		_ = parser.ParseFile
+		_ = format.Node
 		_ = fmt.Println
 		_ = httptrace.DNSDoneInfo{}
 		_ = flag.Bool
 		_ = image.Rect
 		_ = litter.Dump
 		_ = mail.Address{}
+		_ = bytes.NewReader
+		_ = strings.NewReader
+		_ = strconv.Itoa
 	)
 }
 
