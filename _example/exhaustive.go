@@ -6,19 +6,13 @@ package main
 // (group 1) this is a lonely single element grouping.
 import (
 	"flag/parser"
-	"fmt"
-	"github.com/sanity-io/litter"
-	gtoken "go/token"
-	"net"
-	"net/http/httptrace"
-	"net/mail"
-	"os"
 )
 
 // (middle 1) [this comment says something about imports that follow?] [should pull up to the top]
 
 import (
 	"flag"
+	_ "flag"
 )
 
 // (middle 2) [this comment says something about imports that follow?] [should pull up to the top]
@@ -29,7 +23,8 @@ import "image" // this is comment for 'image'
 // (group 2) [this is a comment describing import group] [this should cause the group to stay]
 /*
 	 (group 2) multiline p1
-*/ /*
+*/
+/*
  (group 2) multiline p2
 */
 import (

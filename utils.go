@@ -1,17 +1,27 @@
-package main
+package gofancyimports
 
 import (
 	"bytes"
 	"fmt"
-	"github.com/sanity-io/litter"
 	"go/ast"
 	"go/printer"
 	"go/token"
-	"os"
+	"sort"
 	"strings"
 )
 
-func AdjustImportSpecPos(delta token.Pos, spec *ast.ImportSpec) {
+type posRange struct {
+	Start token.Pos
+	End   token.Pos
+}
+
+func PrintNodeString(fset *token.FileSet, node interface{}) string {
+	b := bytes.NewBuffer(nil)
+	_ = printer.Fprint(b, fset, node)
+	return b.String()
+}
+
+func adjustImportSpecPos(delta token.Pos, spec *ast.ImportSpec) {
 	if spec == nil {
 		return
 	}
@@ -25,14 +35,10 @@ func AdjustImportSpecPos(delta token.Pos, spec *ast.ImportSpec) {
 		spec.EndPos += delta
 	}
 
-	AdjustCommentGroupPos(delta, spec.Comment)
+	adjustCommentGroupPos(delta, spec.Comment)
 }
 
-func aa(spec *ast.GenDecl)  {
-
-}
-
-func AdjustGenDeclPos(delta token.Pos, spec *ast.GenDecl) {
+func adjustGenDeclPos(delta token.Pos, spec *ast.GenDecl) {
 	if spec == nil {
 		return
 	}
@@ -46,7 +52,7 @@ func AdjustGenDeclPos(delta token.Pos, spec *ast.GenDecl) {
 	}
 }
 
-func AdjustCommentGroupPos(delta token.Pos, cg *ast.CommentGroup) {
+func adjustCommentGroupPos(delta token.Pos, cg *ast.CommentGroup) {
 	if cg == nil {
 		return
 	}
@@ -56,75 +62,6 @@ func AdjustCommentGroupPos(delta token.Pos, cg *ast.CommentGroup) {
 	}
 }
 
-func PrintNode(fset *token.FileSet, node interface{}, dump bool) {
-	fmt.Println("> ======")
-	_ = printer.Fprint(os.Stdout, fset, node)
-	fmt.Println("")
-
-	if dump {
-		fmt.Println(">> ### ====== ======")
-		litter.Dump(node)
-		fmt.Println("<< ### ====== ======")
-	}
-}
-func PrintNodeString(fset *token.FileSet, node interface{}) string {
-	b := bytes.NewBuffer(nil)
-	_ = printer.Fprint(b, fset, node)
-	return b.String()
-}
-
-func PrintImportSpecs(fset *token.FileSet, gdecl *ast.GenDecl) {
-	for _, spec := range gdecl.Specs {
-		if ispec, ok := spec.(*ast.ImportSpec); ok {
-			nodeString := PrintNodeString(fset, ispec)
-			if nodeString == "\"os\"" || nodeString[len(nodeString)-1]=='\n' {
-				PrintNode(fset, ispec, true)
-			}
-		}
-	}
-}
-
-func (id *ImportDecl) Print(fset *token.FileSet) string {
-	o := bytes.NewBuffer(nil)
-
-	fmt.Fprintln(o, "docComment: >")
-	if id.Doc != nil {
-		fmt.Fprint(o, prefixLines("  ", id.Doc.Text()))
-		fmt.Fprintln(o, "  ^^")
-	} else {
-		fmt.Fprint(o, prefixLines("  ", "[N/A]"))
-	}
-
-	fmt.Fprintln(o, "groups:")
-	for _, g := range id.Groups {
-		groupStr := prefixLines("  ", g.Print(fset))
-		groupStr = "-" + groupStr[1:]
-		fmt.Fprint(o, groupStr)
-	}
-
-	return o.String()
-}
-
-func (isg *ImportSpecGroup) Print(fset *token.FileSet) string {
-	o := bytes.NewBuffer(nil)
-
-	fmt.Fprintln(o, "docComment: >")
-	if isg.Doc != nil {
-		fmt.Fprint(o, prefixLines("  ", isg.Doc.Text()))
-		fmt.Fprintln(o, "  ^^")
-	} else {
-		fmt.Fprint(o, prefixLines("  ", "[N/A]"))
-	}
-
-	fmt.Fprintln(o, "specs:")
-	for _, s := range isg.Specs {
-		fmt.Fprintln(o, "- >")
-		fmt.Fprint(o, prefixLines("  ", PrintNodeString(fset, s)))
-		fmt.Fprintln(o, "  ^^")
-	}
-
-	return o.String()
-}
 
 func prefixLines(prefix string, target string) string {
 	o := bytes.NewBuffer(nil)
@@ -135,27 +72,13 @@ func prefixLines(prefix string, target string) string {
 	return o.String()
 }
 
-func FileGetLines(f *token.File) []int {
-	lines := make([]int, f.LineCount())
-	for i := 0; i < f.LineCount(); i++ {
-		lines[i] = f.Offset(f.LineStart(i+1))
-	}
-	return lines
-}
-
-func FileSpliceLines(f *token.File, newLines []int) bool {
-	if len(newLines) == 0 {
-		return true
-	}
-	lines := FileGetLines(f)
-	merged := mergeSortedListsUniq(lines, newLines, f.Size())
-	return f.SetLines(merged)
-}
-
 // lists must contain only integers i.e > 0.
 func mergeSortedListsUniq(aList, bList []int, max int) []int {
 	lenA := len(aList)
 	lenB := len(bList)
+
+	sort.Ints(aList)
+	sort.Ints(bList)
 
 	result := make([]int, 0, lenA+lenB)
 
@@ -195,3 +118,54 @@ func mergeSortedListsUniq(aList, bList []int, max int) []int {
 
 	return result
 }
+
+func findAllIndexes(s string, c string) []int {
+	var r []int
+	for i:=0; i<len(s); {
+		if idx := strings.Index(s[i:], c); idx >= 0 {
+			r = append(r, i+idx)
+			i += idx + len(c)
+		} else {
+			break
+		}
+	}
+	return r
+}
+
+func fileGetLines(f *token.File) []int {
+	lines := make([]int, f.LineCount())
+	for i := 0; i < f.LineCount(); i++ {
+		lines[i] = f.Offset(f.LineStart(i+1))
+	}
+	return lines
+}
+
+func FileSpliceLines(f *token.File, newLines []int) bool {
+	if len(newLines) == 0 {
+		return true
+	}
+	lines := fileGetLines(f)
+	merged := mergeSortedListsUniq(lines, newLines, f.Size())
+	return f.SetLines(merged)
+}
+
+
+func ConvertLinePosToOffsets(base int, lines []token.Pos) []int {
+	result := make([]int, len(lines))
+	for i, linePos := range lines {
+		result[i] = int(linePos) - base
+	}
+	return result
+}
+
+//func findLastIndexLessThen(l []int, max int) int {
+//	lastIdx := -1
+//	for idx, e := range l {
+//		if e < max {
+//			lastIdx = idx
+//		} else {
+//			break
+//		}
+//	}
+//	return lastIdx
+//}
