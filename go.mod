@@ -1,6 +1,6 @@
 module github.com/NonLogicalDev/gofancyimports
 
-go 1.15
+go 1.16
 
 require (
 	github.com/sanity-io/litter v1.5.1
