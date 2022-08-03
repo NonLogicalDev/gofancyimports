@@ -57,7 +57,7 @@ import (
 var LocalPrefixes []string
 
 func main() {
-	err := reorganizer.RunCmd(
+	_ = reorganizer.RunCmd(
 		context.Background(),
 		OrganizeImports,
 		reorganizer.WithCommandName("gofancyimports"),
@@ -70,9 +70,6 @@ func main() {
 			}
 		},
 	))
-	if err != nil {
-		panic(err)
-	}
 }
 
 func OrganizeImports(decls []gofancyimports.ImportDecl) []gofancyimports.ImportDecl {
