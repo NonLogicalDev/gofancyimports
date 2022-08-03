@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-
 	gofancyimports "github.com/NonLogicalDev/gofancyimports"
 	"github.com/NonLogicalDev/gofancyimports/internal/diff"
+	"github.com/spf13/cobra"
 )
 
 type ArgHook func(cmd *cobra.Command) func(cmd *cobra.Command, args []string)

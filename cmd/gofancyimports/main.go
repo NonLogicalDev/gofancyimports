@@ -2,14 +2,14 @@ package main
 
 import (
 	"context"
-	"github.com/spf13/cobra"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/NonLogicalDev/gofancyimports"
-	"github.com/NonLogicalDev/gofancyimports/pkg/stdlib"
 	"github.com/NonLogicalDev/gofancyimports/cmd/reorganizer"
+	"github.com/NonLogicalDev/gofancyimports/pkg/stdlib"
+	"github.com/spf13/cobra"
 )
 
 /*
