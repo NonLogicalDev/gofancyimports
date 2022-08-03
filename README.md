@@ -5,7 +5,7 @@
 If all you need is an import sorting tool that will magically fix your import order to a consistent opinionated convention, grab a copy of the built in tool.
 
 ```
-go get -u github.com/NonLogicalDev/gofancyimports/cmd/gofancyimports
+go install github.com/NonLogicalDev/gofancyimports/cmd/gofancyimports@go1.18.3-0
 
 # gofancyimports [--local <local-prefix>] [--write] [--diff] [files...]
 
