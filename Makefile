@@ -1,3 +1,7 @@
+.PHONY: install
+install:
+	go install ./cmd/gofancyimports
+
 .PHONY: gen
 gen:
 	go generate ./...
