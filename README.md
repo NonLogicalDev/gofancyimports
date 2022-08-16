@@ -1,4 +1,4 @@
-# Framework for Re-Formatting GoLang Imports according to your desire.
+# Framework for Re-Formatting GoLang Imports
 
 ## Get the ready to use tool:
 
