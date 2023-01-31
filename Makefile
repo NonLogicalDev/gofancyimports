@@ -1,11 +1,21 @@
+export prefix?=$(HOME)/.local
+export bindir?=$(prefix)/bin
+export binary=gofancyimports
+
+GORELEASER=./scripts/goreleaser.wrap
+
+.PHONY: build
+build:
+	$(GORELEASER) build --rm-dist --snapshot --single-target --output "./dist/$(binary)"
+
+.PHONY: release
+release:
+	$(GORELEASER) release --rm-dist --skip-publish
+
 .PHONY: install
-install:
-	go install ./cmd/gofancyimports
+install: build
+	cp "dist/$(binary)" "$(bindir)"
 
-.PHONY: gen
-gen:
-	go generate ./...
-
-.PHONY: fmt
-fmt:
-	find . \( -iname _example -prune \) -or \( -iname '*.go' -exec gofancyimports -w {} \; \)
+.PHONY: clean
+clean:
+	rm -rf dist

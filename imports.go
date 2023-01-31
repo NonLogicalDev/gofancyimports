@@ -4,13 +4,10 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-)
 
-// TODO:
-//	 if   : declaration group is import and it has comment group, then preserve it.
-//   else :
-//	   preserve continious groups of imports if first element has a comment group attached. (Doc)
-//
+	"github.com/NonLogicalDev/go.fancyimports/internal/astutils"
+	"golang.org/x/tools/go/analysis"
+)
 
 // https://github.com/golang/tools/blob/6e9046bfcd34178dc116189817430a2ad1ee7b43/internal/imports/sortimports.go#L63
 
@@ -32,7 +29,7 @@ type (
 		Doc    *ast.CommentGroup
 		Groups []ImportSpecGroup
 
-		spec   *ast.GenDecl
+		spec *ast.GenDecl
 	}
 
 	// ImportSpecGroup maps to set of consecutive import specs delimited by
@@ -56,39 +53,58 @@ func RewriteImports(filename string, src []byte, rewriter ImportOrganizer) ([]by
 	if err != nil {
 		return nil, err
 	}
+
+	edit, err := RewriteImportsLL(fset, node, rewriter)
+	if err != nil {
+		return nil, err
+	}
+
+	if edit == nil {
+		return nil, err
+	}
+
 	f := fset.File(node.Package)
 
-	importDeclRange, _ := GatherImportDecls(fset, node.Decls, node.Comments)
+	offsetStart := f.Offset(edit.Pos)
+	offsetEnd := f.Offset(edit.End)
+	fullFileSize := offsetStart + len(edit.NewText) + (len(src) - offsetEnd)
+
+	output := make([]byte, 0, fullFileSize)
+	output = append(output, src[:offsetStart]...)
+	output = append(output, edit.NewText...)
+	output = append(output, src[offsetEnd:]...)
+
+	return output, err
+
+}
+
+func RewriteImportsLL(fset *token.FileSet, node *ast.File, rewriter ImportOrganizer) (*analysis.TextEdit, error) {
+	importDeclRange, _ := gatherImportDecls(fset, node.Decls, node.Comments)
 
 	// If importBase is not set, there are no import blocks.
 	importBase := importDeclRange.Base
 	if importBase <= 0 {
-		return src, nil
+		return nil, nil
 	}
 
 	importDeclRange.Decls = rewriter(importDeclRange.Decls)
-	importDecls, newLines, importEndPos := BuildImportDecls(importDeclRange.Start, importDeclRange.Decls)
+	importDecls, newLines, importEndPos := buildImportDecls(importDeclRange.Start, importDeclRange.Decls)
 
-	importString := PrintImportDecls(
+	importString := astutils.PrintImportDecls(
 		importBase, importEndPos, newLines, importDecls,
 	)
 
-	offsetStart := f.Offset(importDeclRange.Start)
-	offsetEnd := f.Offset(importDeclRange.End)
-	fullFileSize := offsetStart + len(importString) + (len(src) - offsetEnd)
-
-	output := make([]byte, 0, fullFileSize)
-	output = append(output, src[:f.Offset(importDeclRange.Start)]...)
-	output = append(output, importString...)
-	output = append(output, src[f.Offset(importDeclRange.End):]...)
-
-	return output, err
+	return &analysis.TextEdit{
+		Pos:     importDeclRange.Start,
+		End:     importDeclRange.End,
+		NewText: []byte(importString),
+	}, nil
 }
 
 func NewImportDecl() ImportDecl {
 	return ImportDecl{
 		spec: &ast.GenDecl{
-			Tok:    token.IMPORT,
+			Tok: token.IMPORT,
 		},
 	}
 }

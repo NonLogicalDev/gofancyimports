@@ -1,20 +1,17 @@
-package gofancyimports
+package astutils
 
 import (
-	"bytes"
-	"fmt"
 	"go/ast"
 	"go/token"
 	"sort"
-	"strings"
 )
 
-type posRange struct {
+type PosRange struct {
 	Start token.Pos
 	End   token.Pos
 }
 
-func truePosRange(node ast.Node) posRange {
+func TruePosRange(node ast.Node) PosRange {
 	var start, end token.Pos
 
 	switch n := node.(type) {
@@ -26,9 +23,9 @@ func truePosRange(node ast.Node) posRange {
 		}
 
 		if n.Lparen == token.NoPos {
-			r := truePosRange(n.Specs[0])
+			r := TruePosRange(n.Specs[0])
 			end = r.End
-		} else{
+		} else {
 			end = n.End()
 		}
 	case *ast.ImportSpec:
@@ -47,10 +44,10 @@ func truePosRange(node ast.Node) posRange {
 		end = n.End()
 	}
 
-	return posRange{start, end}
+	return PosRange{start, end}
 }
 
-func adjustImportSpecPos(delta token.Pos, spec *ast.ImportSpec) {
+func AdjustImportSpecPos(delta token.Pos, spec *ast.ImportSpec) {
 	if spec == nil {
 		return
 	}
@@ -64,10 +61,10 @@ func adjustImportSpecPos(delta token.Pos, spec *ast.ImportSpec) {
 		spec.EndPos += delta
 	}
 
-	adjustCommentGroupPos(delta, spec.Comment)
+	AdjustCommentGroupPos(delta, spec.Comment)
 }
 
-func adjustGenDeclPos(delta token.Pos, spec *ast.GenDecl) {
+func AdjustGenDeclPos(delta token.Pos, spec *ast.GenDecl) {
 	if spec == nil {
 		return
 	}
@@ -81,7 +78,7 @@ func adjustGenDeclPos(delta token.Pos, spec *ast.GenDecl) {
 	}
 }
 
-func adjustCommentGroupPos(delta token.Pos, cg *ast.CommentGroup) {
+func AdjustCommentGroupPos(delta token.Pos, cg *ast.CommentGroup) {
 	if cg == nil {
 		return
 	}
@@ -89,16 +86,6 @@ func adjustCommentGroupPos(delta token.Pos, cg *ast.CommentGroup) {
 	for _, spec := range cg.List {
 		spec.Slash += delta
 	}
-}
-
-
-func prefixLines(prefix string, target string) string {
-	o := bytes.NewBuffer(nil)
-	lines := strings.Split(target, "\n")
-	for _, line := range lines {
-		fmt.Fprintf(o, "%s%s\n", prefix, line)
-	}
-	return o.String()
 }
 
 // lists must contain only integers i.e > 0.
@@ -112,7 +99,7 @@ func mergeSortedListsUniq(aList, bList []int, max int) []int {
 	result := make([]int, 0, lenA+lenB)
 
 	a, b, prevValue := 0, 0, 0
-	for ; a < lenA || b < lenB ; {
+	for a < lenA || b < lenB {
 		value := 0
 
 		// If within bounds of both lists.
@@ -148,23 +135,10 @@ func mergeSortedListsUniq(aList, bList []int, max int) []int {
 	return result
 }
 
-func findAllIndexes(s string, c string) []int {
-	var r []int
-	for i:=0; i<len(s); {
-		if idx := strings.Index(s[i:], c); idx >= 0 {
-			r = append(r, i+idx)
-			i += idx + len(c)
-		} else {
-			break
-		}
-	}
-	return r
-}
-
 func fileGetLines(f *token.File) []int {
 	lines := make([]int, f.LineCount())
 	for i := 0; i < f.LineCount(); i++ {
-		lines[i] = f.Offset(f.LineStart(i+1))
+		lines[i] = f.Offset(f.LineStart(i + 1))
 	}
 	return lines
 }
@@ -177,7 +151,6 @@ func FileSpliceLines(f *token.File, newLines []int) bool {
 	merged := mergeSortedListsUniq(lines, newLines, f.Size())
 	return f.SetLines(merged)
 }
-
 
 func ConvertLinePosToOffsets(base int, lines []token.Pos) []int {
 	result := make([]int, len(lines))

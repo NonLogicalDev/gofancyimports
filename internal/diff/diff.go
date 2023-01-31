@@ -12,11 +12,9 @@ import (
 	"runtime"
 )
 
-/*
-	SRC: https://github.com/mvdan/gofumpt/blob/master/internal/diff/diff.go
-*/
+// ref: https://github.com/mvdan/gofumpt/blob/master/internal/diff/diff.go
 
-// Returns diff of two arrays of bytes in diff tool format.
+// Diff returns diff of two arrays of bytes in diff tool format.
 func Diff(prefix string, b1, b2 []byte) ([]byte, error) {
 	f1, err := writeTempFile(prefix, b1)
 	if err != nil {
@@ -44,35 +42,19 @@ func Diff(prefix string, b1, b2 []byte) ([]byte, error) {
 	return data, err
 }
 
-func writeTempFile(prefix string, data []byte) (string, error) {
-	file, err := ioutil.TempFile("", prefix)
-	if err != nil {
-		return "", err
-	}
-	_, err = file.Write(data)
-	if err1 := file.Close(); err == nil {
-		err = err1
-	}
-	if err != nil {
-		os.Remove(file.Name())
-		return "", err
-	}
-	return file.Name(), nil
-}
-
-/*
-	SRC: https://github.com/golang/tools/blob/master/cmd/goimports/goimports.go
- */
-
 // ReplaceTempFilename replaces temporary filenames in diff with actual one.
 //
-// --- /tmp/gofmt316145376	2017-02-03 19:13:00.280468375 -0500
-// +++ /tmp/gofmt617882815	2017-02-03 19:13:00.280468375 -0500
-// ...
-// ->
-// --- path/to/file.go.orig	2017-02-03 19:13:00.280468375 -0500
-// +++ path/to/file.go	2017-02-03 19:13:00.280468375 -0500
-// ...
+// ref: https://github.com/golang/tools/blob/master/cmd/goimports/goimports.go
+//
+// Example:
+//
+//	--- /tmp/gofmt316145376	2017-02-03 19:13:00.280468375 -0500
+//	+++ /tmp/gofmt617882815	2017-02-03 19:13:00.280468375 -0500
+//	...
+//	->
+//	--- path/to/file.go.orig	2017-02-03 19:13:00.280468375 -0500
+//	+++ path/to/file.go	2017-02-03 19:13:00.280468375 -0500
+//	...
 func ReplaceTempFilename(diff []byte, filename string) ([]byte, error) {
 	bs := bytes.SplitN(diff, []byte{'\n'}, 3)
 	if len(bs) < 3 {
@@ -91,4 +73,20 @@ func ReplaceTempFilename(diff []byte, filename string) ([]byte, error) {
 	bs[0] = []byte(fmt.Sprintf("--- %s%s", f+".orig", t0))
 	bs[1] = []byte(fmt.Sprintf("+++ %s%s", f, t1))
 	return bytes.Join(bs, []byte{'\n'}), nil
+}
+
+func writeTempFile(prefix string, data []byte) (string, error) {
+	file, err := ioutil.TempFile("", prefix)
+	if err != nil {
+		return "", err
+	}
+	_, err = file.Write(data)
+	if err1 := file.Close(); err == nil {
+		err = err1
+	}
+	if err != nil {
+		os.Remove(file.Name())
+		return "", err
+	}
+	return file.Name(), nil
 }
