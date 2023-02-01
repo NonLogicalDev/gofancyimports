@@ -3,7 +3,7 @@ module github.com/NonLogicalDev/go.fancyimports
 go 1.19
 
 require (
-	github.com/sanity-io/litter v1.5.5
+	github.com/pmezard/go-difflib v1.0.0
 	github.com/spf13/cobra v1.6.1
 	golang.org/x/tools v0.5.0
 )

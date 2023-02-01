@@ -1,20 +1,38 @@
 package main
 
 import (
+	"bytes"
+	_ "embed" // enable resource embedding
 	"fmt"
 	"os"
+	"path/filepath"
 
-	"github.com/NonLogicalDev/go.fancyimports"
-	"github.com/NonLogicalDev/go.fancyimports/internal/diff"
-	"github.com/NonLogicalDev/go.fancyimports/pkg/organizer/autogroup"
+	"github.com/pmezard/go-difflib/difflib"
 	"github.com/spf13/cobra"
+
+	gofancyimports "github.com/NonLogicalDev/go.fancyimports"
+	"github.com/NonLogicalDev/go.fancyimports/pkg/organizer/autogroup"
 )
 
-type cobraRunFuncE func(cmd *cobra.Command, args []string) error
+type cmdRunE func(cmd *cobra.Command, args []string) error
+
+type cmdFlags struct {
+	writeFile bool
+	showDiff  bool
+	prefixes  []string
+}
+
+var cmdName = "gofancyimports"
+
+func init() {
+	if len(os.Args) > 0 {
+		cmdName = filepath.Base(os.Args[0])
+	}
+}
 
 func main() {
 	cmd := &cobra.Command{
-		Use:  "gofancyimports",
+		Use:  cmdName,
 		Args: cobra.MinimumNArgs(1),
 	}
 
@@ -35,53 +53,56 @@ func main() {
 	}
 }
 
-type cmdFlags struct {
-	writeFile bool
-	showDiff  bool
-	prefixes  []string
-}
-
-func cmdRun(flg *cmdFlags) cobraRunFuncE {
+func cmdRun(flg *cmdFlags) cmdRunE {
 	return func(cmd *cobra.Command, args []string) error {
 		for _, srcPath := range args {
 			srcOriginal, err := os.ReadFile(srcPath)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed reading file: %w", err)
 			}
 
-			srcRewritten, err := gofancyimports.RewriteImports(srcPath, srcOriginal, autogroup.New(flg.prefixes))
+			srcRewritten, err := gofancyimports.RewriteImportsSource(
+				srcPath, srcOriginal,
+				autogroup.New(flg.prefixes, autogroup.FixupEmbedPackage),
+			)
 			if err != nil {
-				return err
+				return fmt.Errorf("generating imports: %w", err)
 			}
 
-			diffOut, err := diff.Diff("", srcOriginal, srcRewritten)
+			diff, err := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+				A:        difflib.SplitLines(string(srcOriginal)),
+				FromFile: srcPath + ".orig",
+				B:        difflib.SplitLines(string(srcRewritten)),
+				ToFile:   srcPath,
+				Context:  3,
+			})
 			if err != nil {
-				return err
-			}
-			diffOut, err = diff.ReplaceTempFilename(diffOut, srcPath)
-			if err != nil {
-				return err
+				return fmt.Errorf("generating diff: %w", err)
 			}
 
 			// Print diff.
 			if flg.showDiff {
-				fmt.Println(string(diffOut))
+				if len(diff) != 0 {
+					fmt.Printf("%s", diff)
+				}
 				continue
 			}
 
 			// Print source.
 			if !flg.writeFile {
-				fmt.Println(">>> ", srcPath)
 				fmt.Println(string(srcRewritten))
 				continue
 			}
 
 			// Write back.
-			err = os.WriteFile(srcPath, srcRewritten, 0x666)
-			if err != nil {
-				return err
+			if !bytes.Equal(srcOriginal, srcRewritten) {
+				err = os.WriteFile(srcPath, srcRewritten, 0x666)
+				if err != nil {
+					return err
+				}
+
+				fmt.Println("Written:", srcPath)
 			}
-			fmt.Println("Written:", srcPath)
 		}
 
 		return nil

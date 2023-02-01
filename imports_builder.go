@@ -56,7 +56,7 @@ func buildImportDecl(offset token.Pos, idecl ImportDecl) (ast.Decl, []token.Pos,
 
 	// Place the comment at the offset.
 	if idecl.Doc != nil {
-		astutils.AdjustCommentGroupPos(offset-idecl.Doc.Pos(), idecl.Doc)
+		astutils.ShiftCommentGroupPos(offset-idecl.Doc.Pos(), idecl.Doc)
 		for _, c := range idecl.Doc.List {
 			// Ensure all comments start from new line.
 			newLines = append(newLines, c.Pos())
@@ -72,7 +72,7 @@ func buildImportDecl(offset token.Pos, idecl ImportDecl) (ast.Decl, []token.Pos,
 
 	// Ensure declaration starts from a new line.
 	newLines = append(newLines, offset)
-	astutils.AdjustGenDeclPos(offset-idecl.spec.Pos(), idecl.spec)
+	astutils.ShiftGenDeclPos(offset-idecl.spec.Pos(), idecl.spec)
 
 	// After adjusting the position.
 	offset += token.Pos(len(token.IMPORT.String())) + 1
@@ -97,24 +97,33 @@ func buildImportDecl(offset token.Pos, idecl ImportDecl) (ast.Decl, []token.Pos,
 		newLines = append(newLines, offset)
 		offset++
 
-		for sIdx, s := range g.Specs {
+		for specIdx, s := range g.Specs {
 			// Ensure specs don't have unexpected doc comment (these should come from the group).
 			s.Doc = nil
 
 			// For the first spec in the group, attach the doc comment.
-			if sIdx == 0 {
+			if specIdx == 0 {
 				if g.Doc != nil {
-					astutils.AdjustCommentGroupPos(offset-g.Doc.Pos(), g.Doc)
+					astutils.ShiftCommentGroupPos(offset-g.Doc.Pos(), g.Doc)
 					offset = g.Doc.End() + 1
 					s.Doc = g.Doc
 				}
 			}
 
-			astutils.AdjustImportSpecPos(offset-s.Pos(), s)
+			commentOffset := s.End()
+			if s.Comment != nil {
+				for _, specComment := range s.Comment.List {
+					specComment.Slash = commentOffset + 1
+					commentOffset = specComment.End() + 1
+				}
+			}
+
+			astutils.ShiftImportSpecPos(offset-s.Pos(), s)
 			offset = s.End() + 1
 			if s.Comment != nil {
 				offset = s.Comment.End() + 1
 			}
+
 			idecl.spec.Specs = append(idecl.spec.Specs, s)
 		}
 	}

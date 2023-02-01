@@ -1,63 +1,72 @@
-//go:build debug
-
 package gofancyimports
 
 import (
-	"bytes"
-	"fmt"
+	"encoding/json"
 	"go/token"
 	"strings"
 
 	"github.com/NonLogicalDev/go.fancyimports/internal/astutils"
 )
 
-func (id *ImportDecl) Print(fset *token.FileSet) string {
-	o := bytes.NewBuffer(nil)
+func DumpImportDeclList(fset *token.FileSet, decls []ImportDecl) json.RawMessage {
+	var msgs []json.RawMessage
+	for _, decl := range decls {
+		msgs = append(msgs, DumpImportDecl(fset, decl))
+	}
+	out, _ := json.Marshal(msgs)
+	return out
+}
 
-	fmt.Fprintln(o, "docComment: >")
+func DumpImportDecl(fset *token.FileSet, id ImportDecl) json.RawMessage {
+	m := map[string]interface{}{}
+
 	if id.Doc != nil {
-		fmt.Fprint(o, prefixLines("  ", id.Doc.Text()))
-		fmt.Fprintln(o, "  ^^")
+		m["comment.doc"] = splitLines(id.Doc.Text())
 	} else {
-		fmt.Fprint(o, prefixLines("  ", "[N/A]"))
+		m["comment.doc"] = nil
 	}
 
-	fmt.Fprintln(o, "groups:")
+	var commentWidow []interface{}
+	for _, c := range id.WidowComments {
+		commentWidow = append(commentWidow, splitLines(c.Text()))
+	}
+	m["comment.widow"] = commentWidow
+
+	var commentFloat []interface{}
+	for _, c := range id.FloatingComments {
+		commentFloat = append(commentFloat, splitLines(c.Text()))
+	}
+	m["comment.float"] = commentFloat
+
+	var groups []json.RawMessage
 	for _, g := range id.Groups {
-		groupStr := prefixLines("  ", g.Print(fset))
-		groupStr = "-" + groupStr[1:]
-		fmt.Fprint(o, groupStr)
+		groups = append(groups, g.JSON(fset))
 	}
+	m["importGroups"] = groups
 
-	return o.String()
+	out, _ := json.Marshal(m)
+	return out
 }
 
-func (isg *ImportSpecGroup) Print(fset *token.FileSet) string {
-	o := bytes.NewBuffer(nil)
+func (isg *ImportSpecGroup) JSON(fset *token.FileSet) json.RawMessage {
+	m := map[string]interface{}{}
 
-	fmt.Fprintln(o, "docComment: >")
 	if isg.Doc != nil {
-		fmt.Fprint(o, prefixLines("  ", isg.Doc.Text()))
-		fmt.Fprintln(o, "  ^^")
+		m["comment.doc"] = splitLines(isg.Doc.Text())
 	} else {
-		fmt.Fprint(o, prefixLines("  ", "[N/A]"))
+		m["comment.doc"] = nil
 	}
 
-	fmt.Fprintln(o, "specs:")
+	var specs []interface{}
 	for _, s := range isg.Specs {
-		fmt.Fprintln(o, "- >")
-		fmt.Fprint(o, prefixLines("  ", astutils.PrintNodeString(fset, s)))
-		fmt.Fprintln(o, "  ^^")
+		specs = append(specs, splitLines(astutils.PrintNodeString(fset, s)))
 	}
+	m["specs"] = specs
 
-	return o.String()
+	out, _ := json.Marshal(m)
+	return out
 }
 
-func prefixLines(prefix string, target string) string {
-	o := bytes.NewBuffer(nil)
-	lines := strings.Split(target, "\n")
-	for _, line := range lines {
-		fmt.Fprintf(o, "%s%s\n", prefix, line)
-	}
-	return o.String()
+func splitLines(in string) []string {
+	return strings.Split(in, "\n")
 }

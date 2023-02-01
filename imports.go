@@ -1,32 +1,37 @@
 package gofancyimports
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 
-	"github.com/NonLogicalDev/go.fancyimports/internal/astutils"
 	"golang.org/x/tools/go/analysis"
+
+	"github.com/NonLogicalDev/go.fancyimports/internal/astutils"
 )
 
 // https://github.com/golang/tools/blob/6e9046bfcd34178dc116189817430a2ad1ee7b43/internal/imports/sortimports.go#L63
 
 type (
-	// ImportOrganizer is a function that allows reordering merging
-	// and splitting existing ImportDecl's obtained from source.
+	// ImportOrganizer is a function that allows reordering merging and splitting
+	// existing ImportDecl-s obtained from source.
 	ImportOrganizer func(decls []ImportDecl) []ImportDecl
 
-	// ImportDecl represents a single import block, a 1:1 mapping.
+	// ImportDecl represents a single import block.
 	ImportDecl struct {
-		// FloatingComments comments that are floating above
-		// this declaration, yet in the middle of import blocks.
+		// FloatingComments comments that are floating above this declaration,
+		// in the middle of import blocks.
 		FloatingComments []*ast.CommentGroup
 
-		// WidowComments are comments that are floating inside this declaration unattached to specs.
+		// WidowComments are comments that are floating inside this declaration
+		// unattached to specs (typically after the last import spec in a group).
 		WidowComments []*ast.CommentGroup
 
 		// Doc is the doc comment for this import gropup.
-		Doc    *ast.CommentGroup
+		Doc *ast.CommentGroup
+
+		// Groups contains the list of underlying ast.ImportSpec-s.
 		Groups []ImportSpecGroup
 
 		spec *ast.GenDecl
@@ -45,22 +50,21 @@ type (
 	}
 )
 
-// RewriteImports takes same arguments as `go/parser.ParseFile` with an addition of `rewriter`
+// RewriteImportsSource takes same arguments as `go/parser.ParseFile` with an addition of `rewriter`
 // and returns original source with imports grouping modified according to the rewriter.
-func RewriteImports(filename string, src []byte, rewriter ImportOrganizer) ([]byte, error) {
+func RewriteImportsSource(filename string, src []byte, rewriter ImportOrganizer) ([]byte, error) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, filename, src, parser.ParseComments)
 	if err != nil {
 		return nil, err
 	}
 
-	edit, err := RewriteImportsLL(fset, node, rewriter)
+	edit, err := RewriteImportsAST(fset, node, src, rewriter)
 	if err != nil {
 		return nil, err
 	}
-
 	if edit == nil {
-		return nil, err
+		return src, nil
 	}
 
 	f := fset.File(node.Package)
@@ -75,27 +79,40 @@ func RewriteImports(filename string, src []byte, rewriter ImportOrganizer) ([]by
 	output = append(output, src[offsetEnd:]...)
 
 	return output, err
-
 }
 
-func RewriteImportsLL(fset *token.FileSet, node *ast.File, rewriter ImportOrganizer) (*analysis.TextEdit, error) {
-	importDeclRange, _ := gatherImportDecls(fset, node.Decls, node.Comments)
+func RewriteImportsAST(fset *token.FileSet, node *ast.File, src []byte, rewriter ImportOrganizer) (*analysis.TextEdit, error) {
+	f := fset.File(node.Package)
 
-	// If importBase is not set, there are no import blocks.
-	importBase := importDeclRange.Base
-	if importBase <= 0 {
+	importDeclRange, nonImportDecls := gatherImportDecls(fset, node.Decls, node.Comments)
+	invalidDecls := filterDeclsOverlappingRange(nonImportDecls, importDeclRange.Pos, importDeclRange.End)
+	if len(invalidDecls) > 0 {
+		return nil, fmt.Errorf("found %d non import declarations ovelapping imports", len(nonImportDecls))
+	}
+
+	// fmt.Println(string(DumpImportDeclList(fset, importDeclRange.Decls)))
+
+	if importDeclRange.Pos == token.NoPos {
 		return nil, nil
 	}
 
+	importStringOriginal := string(src[f.Offset(importDeclRange.Pos):f.Offset(importDeclRange.End)])
+
 	importDeclRange.Decls = rewriter(importDeclRange.Decls)
-	importDecls, newLines, importEndPos := buildImportDecls(importDeclRange.Start, importDeclRange.Decls)
+	importDecls, newLines, importEndPos := buildImportDecls(importDeclRange.Pos, importDeclRange.Decls)
 
-	importString := astutils.PrintImportDecls(
-		importBase, importEndPos, newLines, importDecls,
+	importString, err := astutils.PrintImportDecls(
+		f.Base(), importEndPos, newLines, importDecls,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("while serializing re-written import declarations: %w", err)
+	}
 
+	if importString == importStringOriginal {
+		return nil, nil
+	}
 	return &analysis.TextEdit{
-		Pos:     importDeclRange.Start,
+		Pos:     importDeclRange.Pos,
 		End:     importDeclRange.End,
 		NewText: []byte(importString),
 	}, nil

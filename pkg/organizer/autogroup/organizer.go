@@ -1,6 +1,11 @@
 package autogroup
 
 import (
+	"fmt"
+	"go/ast"
+	"go/token"
+	"go/types"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -9,13 +14,60 @@ import (
 	"github.com/NonLogicalDev/go.fancyimports/internal/stdlib"
 )
 
-func New(localPrefixes []string) gofancyimports.ImportOrganizer {
-	org := organizer{localPrefixes: localPrefixes}
+func New(localPrefixes []string, specFixups ...func(s *ast.ImportSpec)) gofancyimports.ImportOrganizer {
+	org := organizer{
+		groupLocalPrefixes:    localPrefixes,
+		applyImportSpecFixups: specFixups,
+	}
 	return org.organiseImports
 }
 
+func DefaultSpecFixups(pkgTypeInfo map[string]*types.Package) func(s *ast.ImportSpec) {
+	fixupAlias := FixupDefaultImportAlias(pkgTypeInfo)
+	return func(s *ast.ImportSpec) {
+		FixupEmbedPackage(s)
+		fixupAlias(s)
+	}
+}
+
+func FixupNoOp(_ *ast.ImportSpec) {}
+
+func FixupEmbedPackage(s *ast.ImportSpec) {
+	specPath, _ := strconv.Unquote(s.Path.Value)
+
+	// Special treatment for well known packages.
+	if specPath == "embed" && s.Name != nil && s.Name.Name == "_" && s.Comment == nil {
+		s.Comment = mkLineComment(token.NoPos, "enable resource embedding")
+	}
+}
+
+func FixupDefaultImportAlias(pkgTypeInfo map[string]*types.Package) func(s *ast.ImportSpec) {
+	if pkgTypeInfo == nil {
+		return FixupNoOp
+	}
+
+	return func(s *ast.ImportSpec) {
+		specPath, _ := strconv.Unquote(s.Path.Value)
+		specPathBase := path.Base(specPath)
+
+		// If pkgTypeInfo is provided, ensure that all imports have well-defined name.
+		if len(pkgTypeInfo) > 0 {
+			specTypeInfo, found := pkgTypeInfo[specPath]
+			if found && specPathBase != specTypeInfo.Name() && s.Name == nil {
+				s.Name = &ast.Ident{
+					NamePos: s.Pos(),
+					Name:    specTypeInfo.Name(),
+				}
+			}
+		}
+	}
+}
+
 type organizer struct {
-	localPrefixes []string
+	groupLocalPrefixes    []string
+	groupSideEffecImports bool
+
+	applyImportSpecFixups []func(s *ast.ImportSpec)
 }
 
 func (org *organizer) organiseImports(decls []gofancyimports.ImportDecl) []gofancyimports.ImportDecl {
@@ -24,10 +76,16 @@ func (org *organizer) organiseImports(decls []gofancyimports.ImportDecl) []gofan
 		stickyGroups  []gofancyimports.ImportDecl
 	)
 
+	var floatingComments []*ast.CommentGroup
+
 	for _, d := range decls {
 		if len(d.Groups) == 0 {
 			continue
 		}
+
+		// Gather Floating comments in one group.
+		floatingComments = append(floatingComments, d.FloatingComments...)
+		d.FloatingComments = nil
 
 		if d.Doc == nil {
 			defaultGroups = append(defaultGroups, d)
@@ -40,11 +98,17 @@ func (org *organizer) organiseImports(decls []gofancyimports.ImportDecl) []gofan
 	if len(defaultGroups) > 0 {
 		mergedDefaultGroup := gofancyimports.MergeImportDecls(defaultGroups)
 		mergedDefaultGroup.Groups = org.organizeImportGroups(mergedDefaultGroup.Groups)
+
 		resultGroups = append(resultGroups, mergedDefaultGroup)
 	}
 	for _, group := range stickyGroups {
 		group.Groups = org.organizeImportGroups(group.Groups)
 		resultGroups = append(resultGroups, group)
+	}
+
+	// Add all floating comments to the first available group.
+	if len(resultGroups) > 0 {
+		resultGroups[0].FloatingComments = floatingComments
 	}
 
 	return resultGroups
@@ -68,6 +132,14 @@ func (org *organizer) organizeImportGroups(groups []gofancyimports.ImportSpecGro
 			continue
 		}
 
+		// Apply fixups.
+		for _, s := range g.Specs {
+			for _, fixupSpec := range org.applyImportSpecFixups {
+				fixupSpec(s)
+			}
+		}
+
+		// Split based on Import section doc comment.
 		if g.Doc == nil {
 			defaultGroups = append(defaultGroups, g)
 		} else {
@@ -79,15 +151,16 @@ func (org *organizer) organizeImportGroups(groups []gofancyimports.ImportSpecGro
 	if len(defaultGroups) > 0 {
 		defaultGroup := gofancyimports.MergeImportGroups(defaultGroups)
 		for _, s := range defaultGroup.Specs {
-			sPath, _ := strconv.Unquote(s.Path.Value)
-			sPathParts := strings.Split(sPath, "/")
-			if s.Name != nil && s.Name.Name == "_" {
+			specPath, _ := strconv.Unquote(s.Path.Value)
+			specPathParts := strings.Split(specPath, "/")
+
+			if s.Name != nil && s.Name.Name == "_" && org.groupSideEffecImports {
 				defaultEffectGropup.Specs = append(defaultEffectGropup.Specs, s)
-			} else if stdlib.IsStdlib(sPath) {
+			} else if stdlib.IsStdlib(specPath) {
 				defaultStdGroup.Specs = append(defaultStdGroup.Specs, s)
-			} else if strings.Index(sPathParts[0], ".") == -1 {
+			} else if strings.Index(specPathParts[0], ".") == -1 {
 				defaultNoDotGroup.Specs = append(defaultNoDotGroup.Specs, s)
-			} else if hasAnyPrefix(sPath, org.localPrefixes) {
+			} else if hasAnyPrefix(specPath, org.groupLocalPrefixes) {
 				defaultLocalGroup.Specs = append(defaultLocalGroup.Specs, s)
 			} else {
 				defaultThridPartyGroup.Specs = append(defaultThridPartyGroup.Specs, s)
@@ -106,13 +179,12 @@ func (org *organizer) organizeImportGroups(groups []gofancyimports.ImportSpecGro
 		if len(defaultLocalGroup.Specs) > 0 {
 			result = append(result, defaultLocalGroup)
 		}
+		if len(defaultEffectGropup.Specs) > 0 {
+			result = append(result, defaultEffectGropup)
+		}
 	}
 
 	result = append(result, stickyGroups...)
-
-	if len(defaultEffectGropup.Specs) > 0 {
-		result = append(result, defaultEffectGropup)
-	}
 
 	for _, r := range result {
 		sort.SliceStable(r.Specs, func(i, j int) bool {
@@ -132,4 +204,11 @@ func hasAnyPrefix(path string, prefixes []string) bool {
 		}
 	}
 	return false
+}
+
+func mkLineComment(pos token.Pos, text string) *ast.CommentGroup {
+	return &ast.CommentGroup{List: []*ast.Comment{{
+		Slash: pos,
+		Text:  fmt.Sprintf("// %s", text),
+	}}}
 }

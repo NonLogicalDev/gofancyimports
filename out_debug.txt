@@ -1,0 +1,401 @@
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+[
+  {
+    "comment.doc": [
+      "(group 1) this is a lonely single element grouping.",
+      ""
+    ],
+    "comment.float": null,
+    "comment.widow": null,
+    "importGroups": [
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"go/format\""
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "comment.doc": null,
+    "comment.float": [
+      [
+        "(middle 1) [this comment says something about imports that follow?] [should pull up to the top]",
+        ""
+      ]
+    ],
+    "comment.widow": null,
+    "importGroups": [
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"flag\""
+          ],
+          [
+            "_ \"flag\""
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "comment.doc": [
+      "Test",
+      ""
+    ],
+    "comment.float": [
+      [
+        "(middle 2) [this comment says something about imports that follow?] [should pull up to the top]",
+        ""
+      ]
+    ],
+    "comment.widow": null,
+    "importGroups": [
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"image\"\t// this is comment for 'image'",
+            ""
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "comment.doc": null,
+    "comment.float": null,
+    "comment.widow": null,
+    "importGroups": [
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"sync\""
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "comment.doc": [
+      "(group 2) [this is a comment describing import group] [this should cause the group to stay]",
+      "",
+      "\t (group 2) multiline p1",
+      "",
+      " (group 2) multiline p2",
+      ""
+    ],
+    "comment.float": null,
+    "comment.widow": null,
+    "importGroups": [
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"net/mail\""
+          ]
+        ]
+      },
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"net\""
+          ]
+        ]
+      },
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"net/http/httptrace\""
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "comment.doc": null,
+    "comment.float": [
+      [
+        "(middle 3) [this comment says something about imports?] [should pull up to the top]",
+        ""
+      ]
+    ],
+    "comment.widow": null,
+    "importGroups": [
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"go/parser\""
+          ],
+          [
+            "gtoken \"go/token\"\t// this comment is just for 'go/token'",
+            ""
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "comment.doc": [
+      "(group 3) [this is a comment describing import group] [this should cause the group to stay]",
+      ""
+    ],
+    "comment.float": null,
+    "comment.widow": [
+      [
+        "\t   (group 3 mid) multiline p1",
+        ""
+      ],
+      [
+        "\t   (group 3 mid) multiline p2",
+        ""
+      ],
+      [
+        "\t\t(mid-import 2) [what does this even mean?]",
+        ""
+      ]
+    ],
+    "importGroups": [
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"bytes\""
+          ]
+        ]
+      },
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"strings\""
+          ]
+        ]
+      },
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"strconv\""
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "comment.doc": null,
+    "comment.float": null,
+    "comment.widow": null,
+    "importGroups": [
+      {
+        "comment.doc": [
+          "This comment is for group starting with 'os' (fmt/os)",
+          "(the group should be preserved as unit, but may be sorted) (fmt/os)",
+          ""
+        ],
+        "specs": [
+          [
+            "\"os\""
+          ],
+          [
+            "\"fmt\""
+          ]
+        ]
+      },
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"github.com/sanity-io/litter\""
+          ]
+        ]
+      }
+    ]
+  }
+]
+###########################################
+[
+  {
+    "comment.doc": null,
+    "comment.float": [
+      [
+        "(middle 1) [this comment says something about imports that follow?] [should pull up to the top]",
+        ""
+      ],
+      [
+        "(middle 2) [this comment says something about imports that follow?] [should pull up to the top]",
+        ""
+      ],
+      [
+        "(middle 3) [this comment says something about imports?] [should pull up to the top]",
+        ""
+      ]
+    ],
+    "comment.widow": null,
+    "importGroups": [
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"flag\""
+          ],
+          [
+            "_ \"flag\""
+          ],
+          [
+            "\"go/parser\""
+          ],
+          [
+            "gtoken \"go/token\"\t// this comment is just for 'go/token'",
+            ""
+          ],
+          [
+            "\"sync\""
+          ]
+        ]
+      },
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"github.com/sanity-io/litter\""
+          ]
+        ]
+      },
+      {
+        "comment.doc": [
+          "This comment is for group starting with 'os' (fmt/os)",
+          "(the group should be preserved as unit, but may be sorted) (fmt/os)",
+          ""
+        ],
+        "specs": [
+          [
+            "// This comment is for group starting with 'os' (fmt/os)",
+            "",
+            "// (the group should be preserved as unit, but may be sorted) (fmt/os)",
+            "",
+            "\"fmt\""
+          ],
+          [
+            "\"os\""
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "comment.doc": [
+      "(group 1) this is a lonely single element grouping.",
+      ""
+    ],
+    "comment.float": null,
+    "comment.widow": null,
+    "importGroups": [
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"go/format\""
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "comment.doc": [
+      "Test",
+      ""
+    ],
+    "comment.float": null,
+    "comment.widow": null,
+    "importGroups": [
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"image\"\t// this is comment for 'image'",
+            ""
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "comment.doc": [
+      "(group 2) [this is a comment describing import group] [this should cause the group to stay]",
+      "",
+      "\t (group 2) multiline p1",
+      "",
+      " (group 2) multiline p2",
+      ""
+    ],
+    "comment.float": null,
+    "comment.widow": null,
+    "importGroups": [
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"net\""
+          ],
+          [
+            "\"net/http/httptrace\""
+          ],
+          [
+            "\"net/mail\""
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "comment.doc": [
+      "(group 3) [this is a comment describing import group] [this should cause the group to stay]",
+      "",
+      "\t   (group 3 mid) multiline p1",
+      "",
+      "\t   (group 3 mid) multiline p2",
+      "",
+      "\t\t(mid-import 2) [what does this even mean?]",
+      ""
+    ],
+    "comment.float": null,
+    "comment.widow": [
+      [
+        "\t   (group 3 mid) multiline p1",
+        ""
+      ],
+      [
+        "\t   (group 3 mid) multiline p2",
+        ""
+      ],
+      [
+        "\t\t(mid-import 2) [what does this even mean?]",
+        ""
+      ]
+    ],
+    "importGroups": [
+      {
+        "comment.doc": null,
+        "specs": [
+          [
+            "\"bytes\""
+          ],
+          [
+            "\"strconv\""
+          ],
+          [
+            "\"strings\""
+          ]
+        ]
+      }
+    ]
+  }
+]

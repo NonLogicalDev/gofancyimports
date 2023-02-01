@@ -13,9 +13,8 @@ type (
 		Decls    []ImportDecl
 		Comments commentRange
 
-		Start token.Pos
-		End   token.Pos
-		Base  int
+		Pos token.Pos
+		End token.Pos
 	}
 
 	commentRange struct {
@@ -129,17 +128,12 @@ func gatherImportDecls(fset *token.FileSet, nodeDecls []ast.Decl, nodeComments [
 		d.spec.Doc = nil
 	}
 
-	basePos := 0
-	if firstPos != token.NoPos {
-		basePos = fset.File(firstPos).Base()
-	}
 	return importDeclRange{
 		Decls:    importDecls,
 		Comments: gatherComments(nodeComments, firstPos, lastPos),
 
-		Start: firstPos,
-		End:   lastPos,
-		Base:  basePos,
+		Pos: firstPos,
+		End: lastPos,
 	}, nonImportDecls
 }
 
@@ -157,6 +151,15 @@ func gatherComments(comments []*ast.CommentGroup, startPos, endPos token.Pos) co
 	}
 
 	return result
+}
+
+func filterDeclsOverlappingRange(decls []ast.Decl, pos, end token.Pos) (r []ast.Decl) {
+	for _, decl := range decls {
+		if (decl.Pos() > pos && decl.Pos() < end) || (decl.End() > pos && decl.End() < end) {
+			r = append(r, decl)
+		}
+	}
+	return r
 }
 
 func findAllIndexes(s string, c string) []int {

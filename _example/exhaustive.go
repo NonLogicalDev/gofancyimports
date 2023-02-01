@@ -1,3 +1,5 @@
+//go:build ignore
+
 // (before 1) [package doc comment]
 package main
 
@@ -19,6 +21,9 @@ import (
 
 // Test
 import "image" // this is comment for 'image'
+
+
+import "sync" 
 
 // (group 2) [this is a comment describing import group] [this should cause the group to stay]
 /*
@@ -64,7 +69,8 @@ import (
 )
 
 import (
-	// This comment is for group starting with 'os' (the group should be preserved as unit, but may be sorted)
+	// This comment is for group starting with 'os' (fmt/os) 
+	// (the group should be preserved as unit, but may be sorted) (fmt/os)
 	"os"
 	"fmt"
 

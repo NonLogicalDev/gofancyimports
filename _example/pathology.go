@@ -1,3 +1,5 @@
+//go:build ignore
+
 // Random comment 1
 package main
 
