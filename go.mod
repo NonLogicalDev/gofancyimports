@@ -1,4 +1,4 @@
-module github.com/NonLogicalDev/go.fancyimports
+module github.com/NonLogicalDev/gofancyimports
 
 go 1.19
 

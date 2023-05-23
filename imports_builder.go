@@ -4,7 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"github.com/NonLogicalDev/go.fancyimports/internal/astutils"
+	"github.com/NonLogicalDev/gofancyimports/internal/astutils"
 )
 
 func buildImportDecls(offset token.Pos, idecls []ImportDecl) ([]ast.Decl, []token.Pos, token.Pos) {

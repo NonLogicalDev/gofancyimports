@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	gofancyimports "github.com/NonLogicalDev/go.fancyimports"
-	"github.com/NonLogicalDev/go.fancyimports/internal/stdlib"
+	gofancyimports "github.com/NonLogicalDev/gofancyimports"
+	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
 )
 
 func New(localPrefixes []string, specFixups ...func(s *ast.ImportSpec)) gofancyimports.ImportOrganizer {

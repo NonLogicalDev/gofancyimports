@@ -5,7 +5,7 @@ import (
 	"go/token"
 	"strings"
 
-	"github.com/NonLogicalDev/go.fancyimports/internal/astutils"
+	"github.com/NonLogicalDev/gofancyimports/internal/astutils"
 )
 
 func DumpImportDeclList(fset *token.FileSet, decls []ImportDecl) json.RawMessage {

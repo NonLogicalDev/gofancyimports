@@ -10,8 +10,8 @@ import (
 	"github.com/pmezard/go-difflib/difflib"
 	"github.com/spf13/cobra"
 
-	gofancyimports "github.com/NonLogicalDev/go.fancyimports"
-	"github.com/NonLogicalDev/go.fancyimports/pkg/organizer/autogroup"
+	gofancyimports "github.com/NonLogicalDev/gofancyimports"
+	"github.com/NonLogicalDev/gofancyimports/pkg/organizer/autogroup"
 )
 
 type cmdRunE func(cmd *cobra.Command, args []string) error

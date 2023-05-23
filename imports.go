@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
-	"github.com/NonLogicalDev/go.fancyimports/internal/astutils"
+	"github.com/NonLogicalDev/gofancyimports/internal/astutils"
 )
 
 // https://github.com/golang/tools/blob/6e9046bfcd34178dc116189817430a2ad1ee7b43/internal/imports/sortimports.go#L63

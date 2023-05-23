@@ -5,7 +5,7 @@ import (
 	"go/token"
 	"strings"
 
-	"github.com/NonLogicalDev/go.fancyimports/internal/astutils"
+	"github.com/NonLogicalDev/gofancyimports/internal/astutils"
 )
 
 type (

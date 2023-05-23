@@ -22,7 +22,7 @@ clean:
 
 .PHONY: fmt
 fmt:
-	go run ./cmd/testanalyser -c 0 -localImportPrefix github.com/NonLogicalDev/go.fancyimports -fix ./...
+	go run ./cmd/testanalyser -c 0 -localImportPrefix github.com/NonLogicalDev/gofancyimports -fix ./...
 
 .PHONY: example
 example:

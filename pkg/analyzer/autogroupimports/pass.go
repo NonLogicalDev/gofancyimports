@@ -6,9 +6,9 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
-	gofancyimports "github.com/NonLogicalDev/go.fancyimports"
-	"github.com/NonLogicalDev/go.fancyimports/internal/astutils"
-	"github.com/NonLogicalDev/go.fancyimports/pkg/organizer/autogroup"
+	gofancyimports "github.com/NonLogicalDev/gofancyimports"
+	"github.com/NonLogicalDev/gofancyimports/internal/astutils"
+	"github.com/NonLogicalDev/gofancyimports/pkg/organizer/autogroup"
 )
 
 const _name = "autogroupimports"
