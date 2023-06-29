@@ -3,45 +3,116 @@ package autogroup
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
-	"go/types"
+	astTypes "go/types"
 	"path"
 	"sort"
 	"strconv"
 	"strings"
 
-	gofancyimports "github.com/NonLogicalDev/gofancyimports"
 	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+	"github.com/NonLogicalDev/gofancyimports/pkg/types"
 )
 
-func New(localPrefixes []string, specFixups ...func(s *ast.ImportSpec)) gofancyimports.ImportOrganizer {
-	org := organizer{
-		groupLocalPrefixes:    localPrefixes,
-		applyImportSpecFixups: specFixups,
+type (
+	organizer struct {
+		config config
 	}
-	return org.organiseImports
+	config struct {
+		groupSideEffects  bool
+		groupNoDotImports bool
+
+		isLocalGroup  GroupMatcher
+		isStdlibGroup GroupMatcher
+
+		specFixups []SpecFixup
+	}
+
+	// Option represents configurable option for autogroup transform.
+	Option func(conf *config)
+
+	// SpecFixup is a function that modifies an ImportSpec in place.
+	// Allows adding aliases and comments.
+	SpecFixup func(s *ast.ImportSpec)
+
+	// GroupMatcher is a function that determines group membership.
+	GroupMatcher func(spec *ast.ImportSpec, path string) bool
+)
+
+// WithSpecFixups configures rules for adjusting import specs.
+//
+// Examples:
+//   - FixupDefaultImportAlias - ensure import alias is added if last component of path does not match package name.
+//   - FixupEmbedPackage - ensure a comment is added to side effect import of embed package to appease linters.
+func WithSpecFixups(fixups ...SpecFixup) Option {
+	return func(conf *config) {
+		conf.specFixups = append(conf.specFixups, fixups...)
+	}
 }
 
-func DefaultSpecFixups(pkgTypeInfo map[string]*types.Package) func(s *ast.ImportSpec) {
-	fixupAlias := FixupDefaultImportAlias(pkgTypeInfo)
-	return func(s *ast.ImportSpec) {
-		FixupEmbedPackage(s)
-		fixupAlias(s)
+// WithLocalPrefixGroup enables an extra local group of imports to differentiate between
+// third party and project import based on import path prefixes.
+func WithLocalPrefixGroup(prefixes []string) Option {
+	return func(conf *config) {
+		conf.isLocalGroup = func(spec *ast.ImportSpec, path string) bool {
+			return hasAnyPrefix(path, prefixes)
+		}
 	}
 }
 
-func FixupNoOp(_ *ast.ImportSpec) {}
+// WithSideEffectGroupEnabled enables an extra side effect group for imports that are imported
+// purely for side effects.
+func WithSideEffectGroupEnabled(enable bool) Option {
+	return func(conf *config) {
+		conf.groupSideEffects = enable
+	}
+}
 
+// WithNoDotGroupEnabled enables an extra group for imports that are not StdLib and do not have dots in first path component.
+// Most typically this is useful for differentiating auto-generated imports.
+func WithNoDotGroupEnabled(enable bool) Option {
+	return func(conf *config) {
+		conf.groupNoDotImports = enable
+	}
+}
+
+// WithCustomStdlibMatcher allows overriding stdlib matcher.
+//
+// Stdlib lookup is messy and is a moving target with new Go releases. This is your escape
+// hatch if built in lookup is not working for you to make sure that this library is still
+// usable in the future.
+func WithCustomStdlibMatcher(lookup GroupMatcher) Option {
+	return func(conf *config) {
+		conf.isStdlibGroup = lookup
+	}
+}
+
+// WithCustomLocalGroupMatcher allows overriding local group matcher if prefix based lookup is not flexible enough.
+func WithCustomLocalGroupMatcher(lookup GroupMatcher) Option {
+	return func(conf *config) {
+		conf.isLocalGroup = lookup
+	}
+}
+
+func DefaultSpecFixups(pkgTypeInfo map[string]*astTypes.Package) []SpecFixup {
+	return []SpecFixup{
+		FixupEmbedPackage,
+		FixupDefaultImportAlias(pkgTypeInfo),
+	}
+}
+
+// FixupEmbedPackage ensures side effect only embed package has a comment to avoid getting flagged by linters.
 func FixupEmbedPackage(s *ast.ImportSpec) {
 	specPath, _ := strconv.Unquote(s.Path.Value)
 
 	// Special treatment for well known packages.
 	if specPath == "embed" && s.Name != nil && s.Name.Name == "_" && s.Comment == nil {
-		s.Comment = mkLineComment(token.NoPos, "enable resource embedding")
+		s.Comment = makeLineComment("enable embedding")
 	}
 }
 
-func FixupDefaultImportAlias(pkgTypeInfo map[string]*types.Package) func(s *ast.ImportSpec) {
+// FixupDefaultImportAlias ensures import alias is added to imports if last component of
+// path does not match package name.
+func FixupDefaultImportAlias(pkgTypeInfo map[string]*astTypes.Package) func(s *ast.ImportSpec) {
 	if pkgTypeInfo == nil {
 		return FixupNoOp
 	}
@@ -63,29 +134,48 @@ func FixupDefaultImportAlias(pkgTypeInfo map[string]*types.Package) func(s *ast.
 	}
 }
 
-type organizer struct {
-	groupLocalPrefixes    []string
-	groupSideEffecImports bool
+func FixupNoOp(_ *ast.ImportSpec) {}
 
-	applyImportSpecFixups []func(s *ast.ImportSpec)
+func New(opts ...Option) types.ImportTransform {
+	org := organizer{
+		config: config{
+			isStdlibGroup: func(_ *ast.ImportSpec, path string) bool {
+				return stdlib.IsStdlib(path)
+			},
+			isLocalGroup: func(_ *ast.ImportSpec, path string) bool {
+				return false
+			},
+		},
+	}
+	for _, apply := range opts {
+		apply(&org.config)
+	}
+	return org.organiseImports
 }
 
-func (org *organizer) organiseImports(decls []gofancyimports.ImportDecl) []gofancyimports.ImportDecl {
+func (org *organizer) organiseImports(decls []types.ImportDeclaration) []types.ImportDeclaration {
 	var (
-		defaultGroups []gofancyimports.ImportDecl
-		stickyGroups  []gofancyimports.ImportDecl
+		cGroup        *types.ImportDeclaration
+		defaultGroups []types.ImportDeclaration
+		stickyGroups  []types.ImportDeclaration
 	)
 
 	var floatingComments []*ast.CommentGroup
 
 	for _, d := range decls {
-		if len(d.Groups) == 0 {
+		d := d
+		if len(d.ImportGroups) == 0 {
 			continue
 		}
 
 		// Gather Floating comments in one group.
-		floatingComments = append(floatingComments, d.FloatingComments...)
-		d.FloatingComments = nil
+		floatingComments = append(floatingComments, d.LeadingComments...)
+		d.LeadingComments = nil
+
+		if len(d.ImportGroups[0].Specs) != 0 && d.ImportGroups[0].Specs[0].Path.Value == `"C"` {
+			cGroup = &d
+			continue
+		}
 
 		if d.Doc == nil {
 			defaultGroups = append(defaultGroups, d)
@@ -94,37 +184,40 @@ func (org *organizer) organiseImports(decls []gofancyimports.ImportDecl) []gofan
 		}
 	}
 
-	var resultGroups []gofancyimports.ImportDecl
+	var resultGroups []types.ImportDeclaration
+	if cGroup != nil {
+		resultGroups = append(resultGroups, *cGroup)
+	}
 	if len(defaultGroups) > 0 {
-		mergedDefaultGroup := gofancyimports.MergeImportDecls(defaultGroups)
-		mergedDefaultGroup.Groups = org.organizeImportGroups(mergedDefaultGroup.Groups)
+		mergedDefaultGroup := types.MergeDeclarations(defaultGroups)
+		mergedDefaultGroup.ImportGroups = org.organizeImportGroups(mergedDefaultGroup.ImportGroups)
 
 		resultGroups = append(resultGroups, mergedDefaultGroup)
 	}
 	for _, group := range stickyGroups {
-		group.Groups = org.organizeImportGroups(group.Groups)
+		group.ImportGroups = org.organizeImportGroups(group.ImportGroups)
 		resultGroups = append(resultGroups, group)
 	}
 
 	// Add all floating comments to the first available group.
 	if len(resultGroups) > 0 {
-		resultGroups[0].FloatingComments = floatingComments
+		resultGroups[0].LeadingComments = floatingComments
 	}
 
 	return resultGroups
 }
 
-func (org *organizer) organizeImportGroups(groups []gofancyimports.ImportSpecGroup) []gofancyimports.ImportSpecGroup {
+func (org *organizer) organizeImportGroups(groups []types.ImportGroup) []types.ImportGroup {
 	var (
-		defaultGroups []gofancyimports.ImportSpecGroup
+		defaultGroups []types.ImportGroup
 
-		defaultStdGroup        gofancyimports.ImportSpecGroup
-		defaultNoDotGroup      gofancyimports.ImportSpecGroup
-		defaultLocalGroup      gofancyimports.ImportSpecGroup
-		defaultThridPartyGroup gofancyimports.ImportSpecGroup
-		defaultEffectGropup    gofancyimports.ImportSpecGroup
+		defaultStdGroup        types.ImportGroup
+		defaultNoDotGroup      types.ImportGroup
+		defaultLocalGroup      types.ImportGroup
+		defaultThridPartyGroup types.ImportGroup
+		defaultEffectGropup    types.ImportGroup
 
-		stickyGroups []gofancyimports.ImportSpecGroup
+		stickyGroups []types.ImportGroup
 	)
 
 	for _, g := range groups {
@@ -134,8 +227,8 @@ func (org *organizer) organizeImportGroups(groups []gofancyimports.ImportSpecGro
 
 		// Apply fixups.
 		for _, s := range g.Specs {
-			for _, fixupSpec := range org.applyImportSpecFixups {
-				fixupSpec(s)
+			for _, fixup := range org.config.specFixups {
+				fixup(s)
 			}
 		}
 
@@ -147,20 +240,20 @@ func (org *organizer) organizeImportGroups(groups []gofancyimports.ImportSpecGro
 		}
 	}
 
-	var result []gofancyimports.ImportSpecGroup
+	var result []types.ImportGroup
 	if len(defaultGroups) > 0 {
-		defaultGroup := gofancyimports.MergeImportGroups(defaultGroups)
+		defaultGroup := types.MergeGroups(defaultGroups)
 		for _, s := range defaultGroup.Specs {
 			specPath, _ := strconv.Unquote(s.Path.Value)
 			specPathParts := strings.Split(specPath, "/")
 
-			if s.Name != nil && s.Name.Name == "_" && org.groupSideEffecImports {
+			if org.config.groupSideEffects && s.Name != nil && s.Name.Name == "_" {
 				defaultEffectGropup.Specs = append(defaultEffectGropup.Specs, s)
-			} else if stdlib.IsStdlib(specPath) {
+			} else if org.config.isStdlibGroup(s, specPath) {
 				defaultStdGroup.Specs = append(defaultStdGroup.Specs, s)
-			} else if strings.Index(specPathParts[0], ".") == -1 {
+			} else if org.config.groupNoDotImports && !strings.Contains(specPathParts[0], ".") {
 				defaultNoDotGroup.Specs = append(defaultNoDotGroup.Specs, s)
-			} else if hasAnyPrefix(specPath, org.groupLocalPrefixes) {
+			} else if org.config.isLocalGroup(s, specPath) {
 				defaultLocalGroup.Specs = append(defaultLocalGroup.Specs, s)
 			} else {
 				defaultThridPartyGroup.Specs = append(defaultThridPartyGroup.Specs, s)
@@ -206,9 +299,8 @@ func hasAnyPrefix(path string, prefixes []string) bool {
 	return false
 }
 
-func mkLineComment(pos token.Pos, text string) *ast.CommentGroup {
+func makeLineComment(text string) *ast.CommentGroup {
 	return &ast.CommentGroup{List: []*ast.Comment{{
-		Slash: pos,
-		Text:  fmt.Sprintf("// %s", text),
+		Text: fmt.Sprintf("// %s", text),
 	}}}
 }

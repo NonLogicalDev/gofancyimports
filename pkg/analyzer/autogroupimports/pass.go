@@ -1,13 +1,14 @@
 package autogroupimports
 
 import (
+	"bytes"
+	"go/printer"
 	"go/types"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
 
 	gofancyimports "github.com/NonLogicalDev/gofancyimports"
-	"github.com/NonLogicalDev/gofancyimports/internal/astutils"
 	"github.com/NonLogicalDev/gofancyimports/pkg/organizer/autogroup"
 )
 
@@ -61,8 +62,6 @@ Additionally all un-aliased imports whose base name (last path entry) does not m
 	)
 `
 
-var argLocalPrefix string
-
 var Analyzer = &analysis.Analyzer{
 	Name: _name,
 	Doc:  _doc,
@@ -71,8 +70,26 @@ var Analyzer = &analysis.Analyzer{
 	RunDespiteErrors: true,
 }
 
+var (
+	argLocalPrefix string
+
+	argNoDotGroup bool
+
+	argSideEffectGroup bool
+
+	_defaultPrintConfig = &printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}
+)
+
 func init() {
-	Analyzer.Flags.StringVar(&argLocalPrefix, "localImportPrefix", "", "comma separated list of local prefixes")
+	Analyzer.Flags.StringVar(&argLocalPrefix,
+		"group-local-prefixes", "",
+		"comma separated list of local prefixes")
+	Analyzer.Flags.BoolVar(&argNoDotGroup,
+		"group-nodot", false,
+		"separate no dot imports that are not stdlib")
+	Analyzer.Flags.BoolVar(&argSideEffectGroup,
+		"group-effect", false,
+		"separate side effect imports into separate group")
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
@@ -85,34 +102,47 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			pkgInfo[importPkg.Path()] = importPkg
 		}
 	}
-	importOrganizer := autogroup.New(localPrefixes, autogroup.DefaultSpecFixups(pkgInfo))
 
+	transform := autogroup.New(
+		autogroup.WithLocalPrefixGroup(localPrefixes),
+		autogroup.WithSpecFixups(autogroup.DefaultSpecFixups(pkgInfo)...),
+		autogroup.WithNoDotGroupEnabled(argNoDotGroup),
+		autogroup.WithSideEffectGroupEnabled(argSideEffectGroup),
+	)
 	for _, file := range pass.Files {
-		src := astutils.PrintNodeString(pass.Fset, file)
+		b := bytes.NewBuffer(nil)
+		err := _defaultPrintConfig.Fprint(b, pass.Fset, file)
+		if err != nil {
+			pass.Reportf(file.Pos(), "error while loading file: %v", err)
+			continue
+		}
 
-		edit, err := gofancyimports.RewriteImportsAST(pass.Fset, file, []byte(src), importOrganizer)
+		edits, err := gofancyimports.RewriteImportsAST(pass.Fset, file, b.Bytes(),
+			gofancyimports.WithTransform(transform),
+			gofancyimports.WithPrinterConfig(_defaultPrintConfig),
+		)
 		if err != nil {
 			pass.Reportf(file.Pos(), "error while parsing imports: %v", err)
 			continue
 		}
 
-		if edit == nil {
-			continue
-		}
-		pass.Report(analysis.Diagnostic{
-			Pos: edit.Pos,
-			End: edit.End,
+		for _, edit := range edits {
+			edit := edit
+			pass.Report(analysis.Diagnostic{
+				Pos: edit.Pos,
+				End: edit.End,
 
-			Category: "imports",
-			Message:  "go imports are not properly formatted",
+				Category: "imports",
+				Message:  "go imports are not properly formatted",
 
-			SuggestedFixes: []analysis.SuggestedFix{
-				{
-					Message:   "format imports",
-					TextEdits: []analysis.TextEdit{*edit},
+				SuggestedFixes: []analysis.SuggestedFix{
+					{
+						Message:   "format imports",
+						TextEdits: []analysis.TextEdit{*edit},
+					},
 				},
-			},
-		})
+			})
+		}
 	}
 
 	return nil, nil

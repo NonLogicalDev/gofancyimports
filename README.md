@@ -1,22 +1,55 @@
-# Framework for programmatically Re-Organizing GoLang Imports
+# No-Compromise Deterministic GoLang Import Management
+
+A mother of all tools to enforce deterministic order of imports across your golang codebase.
+* ✅ Easy to use, configure or extend
+* ✅ Deterministically orders toughest comment ridden imports
+* ✅ Handles comments gracefully
+
+This repo is the home for:
+* `pkg/analyzer/autogroupimports` and `pkg/organizer/autogroup` 
+	* ready to use, deterministic, highly configurable, pluggable, import order organizer
+    * based on golang `Analyzer` framework
+* `cmd/gofancyimports fix`
+	* ready to use cli with full power of `pkg/organizer/autogroup` and same command line interface as `goimports`
+* `gofancyimports`
+  * the lower level library which allows manipulating import groups with ease for implementing your own group and comment aware import fixers
 
 ## Get the ready to use tool:
 
-If all you need is an import sorting tool that will magically fix your import order to a consistent opinionated convention, grab a copy of the built in tool.
+If all you need is an import sorting tool that will deterministically fix your import order to a consistent opinionated convention, grab a copy of the `gofancyimports` tool:
 
 ```
-go install github.com/NonLogicalDev/gofancyimports/cmd/gofancyimports@go1.18.3-0
-
-# gofancyimports [--local <local-prefix>] [--write] [--diff] [files...]
-
-gofancyimports --local "github.com/NonLogicalDev" _examples/ex.go
+go install github.com/NonLogicalDev/gofancyimports/cmd/gofancyimports@latest
 ```
+
+```
+$ gofancyimports fix -h
+Fixup single or multiple provided files
+
+Usage:
+  gofancyimports fix [flags]
+
+Flags:
+  -d, --diff                print diff
+      --group-effect        group side effect imports
+      --group-nodot         group no dot imports
+  -h, --help                help for fix
+  -l, --local stringArray   group local imports (comma separated prefixes)
+  -w, --write               write the file back?
+```
+
+<table>
+<tr>
+<th colspan="2"><code>gofancyimports fix</code></th>
+</tr>
+<tr>
+<th><code>Before</code></th>
+<th><code>After</code></th>
+</tr>
+<tr>
+<td>
 
 ```go
-// --------------------------------------------------------------------------------
-// Transforms this:
-// --------------------------------------------------------------------------------
-
 import (
 	"github.com/sanity-io/litter"
 	"flag"
@@ -31,66 +64,197 @@ import (
 	"strings"
 	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
 )
-
-// --------------------------------------------------------------------------------
-// Into this:
-// --------------------------------------------------------------------------------
-
-import (
-	"flag"
-	"os"
-	"strconv"
-	"strings"
-
-	"gen/mocks/github.com/go-redis/redis"
-
-	"github.com/go-redis/redis"
-	"github.com/sanity-io/litter"
-
-	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
-
-	_ "net/http/pprof"
-)
-
 ```
+
+</td>
+<td>
+
+```go
+import (
+	"flag"
+	_ "net/http/pprof"
+	"os"
+	"strconv"
+	"strings"
+
+	"gen/mocks/github.com/go-redis/redis"
+	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+	"github.com/go-redis/redis"
+	"github.com/sanity-io/litter"
+)
+```
+
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<th colspan="2"><code>gofancyimports fix --group-nodot</code></th>
+</tr>
+<tr>
+<th><code>Before</code></th>
+<th><code>After</code></th>
+</tr>
+<tr>
+<td>
+
+```go
+import (
+	"github.com/sanity-io/litter"
+	"flag"
+)
+
+import (
+	_ "net/http/pprof"
+	"os"
+	"strconv"
+	"gen/mocks/github.com/go-redis/redis"
+	"github.com/go-redis/redis"
+	"strings"
+	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+)
+```
+
+</td>
+<td>
+
+```go
+import (
+	"flag"
+	_ "net/http/pprof"
+	"os"
+	"strconv"
+	"strings"
+
+	"gen/mocks/github.com/go-redis/redis"
+
+	"github.com/go-redis/redis"
+	"github.com/sanity-io/litter"
+	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+)
+```
+
+</td>
+</tr>
+</table>
+
+
+<table>
+<tr>
+<th colspan="2"><code>gofancyimports fix --group-no-dot --group-effect --local=github.com/NonLogicalDev</code></th>
+</tr>
+<tr>
+<th><code>Before</code></th>
+<th><code>After</code></th>
+</tr>
+<tr>
+<td>
+
+```go
+import (
+	"github.com/sanity-io/litter"
+	"flag"
+)
+
+import (
+	_ "net/http/pprof"
+	"os"
+	"strconv"
+	"gen/mocks/github.com/go-redis/redis"
+	"github.com/go-redis/redis"
+	"strings"
+	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+)
+```
+
+</td>
+<td>
+
+```go
+import (
+	"flag"
+	"os"
+	"strconv"
+	"strings"
+
+	"gen/mocks/github.com/go-redis/redis"
+
+	"github.com/go-redis/redis"
+	"github.com/sanity-io/litter"
+
+	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+
+	_ "net/http/pprof"
+)
+```
+
+</td>
+</tr>
+</table>
 
 - - - - - -
 
-## 📘📘📘 If you wish to implement your own import sorter, read on: 📘📘📘
-
+# 🎓 Extending or implementing your own import fixer
 
 ## Background:
 
-There are plenty of tools for formatting GoLang. Most of them do a fairly good
-job at tidying up imports.  However they tend to think of imports rather
-simplistically.
+There are plenty of tools for formatting GoLang. Most of them do a fairly good job at
+tidying up imports.  However they tend to not give a lot of power for deterministically
+setting the order, or suffer from issues around dealing with comments.
 
-The world of Go Imports formatting divides into two most common approaches:
+The world of Go Imports formatting divides into three common approaches:
 
-1. Trust the programmer's groupings, and don't muck around with them, only sort.
+1. Trust the programmer's groupings, and don't muck around with them, only sort within groups:
 	* [`go imports`][1]
 2. Don't trust the programmer's grouping and impose a set of opinionated restrictive rules on how imports should be grouped.
-	* [`go fumpt`][2] / [`gopls`][2]
+	* [`go fumpt`][2] / [`gopls`][3]
+3. Give a little bit of control via CLI parameters but not export the framework to build custom formatter.
+	* [`gci`][4]
 
-This project stems from a whish to make programmaticaly defining rules for organizing  imports eaiser. Go is blessed with a very well documented parser and AST implementation, but one of its biggest shortcomings is dealing with comments, and whitespace.
+If your organization or project happens to use a convention that does not fit within the
+group 2, and you wish to modify an existing tool like fumpt, it ends up being rather
+difficult endeavor as these tools have not been designed with simple extensiblity in mind.
+This project stems from a whish to make programmaticaly defining rules for organizing
+imports simple and composable.
 
-It is extremely tedious as I have discovered while writing this package. And it rings especially true when dealing with imports, because it is all about managing comments and whitespace.
+Lucky for us Go is blessed with a very well documented parser and AST implementation,
+however one of its biggest shortcomings is dealing with comments, and whitespace,
+especially around imports, because beyond the bare basics it ALL all about managing
+comments and whitespace.  With advent of tools like [`go analysis`][3] which are very
+flexible about inspecting and modifying code, a compatibel tool for programmatically
+working with imports groupings is sorely needed to provide a simple way of implementing an
+organization wide import style. 
 
-> The difficulty of working with comments in Go AST mainly stems from the fact that Comments are do not quite behave like other AST nodes.
->
-> Firstly they are not part of the tree unless they are referenced by another AST node as either Doc or Line End comment.
->
-> And secondly they are very rigidly tied to the Byte offsets of corresponding files, meaning making changes to them or AST nodes to which they are attached reqires recaclulating their offset positions.
-
-With advent of tools like [`go analysis`][3] which are very flexible about ispecting and modifying code, a tool for programmatically working with imports groupings is sorely needed in my opinion. A tool that exposes import groups as a concept to the rule writer, and allow them to reorder, merge and split them as they see fit.
-
-If only you did not have to reinvent the bycicle (write logic for aligning comments, line breaks etc), but could operate on import groups and associated comments in a more structured  way...
 
 ## Solution `gofancyimports`
 
-This framework takes away the difficulty from dealing with floating comments, and whitespace between import spec groupings, by exposing import declarations and groupings as simple structs that you can modify at will.  All of the complexity of rebuilding the imports to your spec represented by those structs is taken care of.
+A tool that exposes import groups as a concept to the rule writer, and allow them to
+reorder, merge and split them deterministically.
 
-This framework can understand import clauses like this, all comments in this example are exposed structuraly and when rendered to string are properly positioned, no matter how you reorder the import groups.
+The biggest selling point of this library is that you don't have to become an AST expert
+to write an import transform using this library, everything is handled sensibly and
+automatically, you just provide a function that takes existing import gropuings (nicely
+abstracted) and transform it into a list of groupings you desire. All comments will be
+hoisted and adjusted for you.
+
+This framework takes away the difficulty from dealing with floating comments, and
+whitespace between import spec groupings, by exposing import declarations and groupings as
+simple structs that you can freely modify.  All of the complexity of rebuilding the
+imports to your spec represented by those structs is taken care of.
+
+This framework can understand import clauses like this (See `Fig 1`). For example: all comments in the
+below figure are structurally parsed and when transformed are properly positioned, no
+matter how you reorder the import groups, all complexity of recomputing offsets is
+completely abstracted away.
+
+<table>
+<tr>
+<th>Fig 1</th>
+</tr>
+<tr>
+<td>
+
 
 ```go
 
@@ -119,55 +283,109 @@ import (
 )
 ```
 
-This package mainly exposes following high level interface:
+</td>
+</tr>
+</table>
+
+This package mainly exposes the following high level interface (See `Fig 2`). The
+implementation of a custom import fixer boils down to implementation of a simple function
+that transforms one list of `[]ImportDelaration` that was parsed from file to another list
+of `[]ImportDelaration`.
+
+You can reorder add or remove entries from those `ImportDeclarations`. 
+No comments will be lost and all comments will be magically and appropriately placed.
+
+<table>
+<tr>
+<th>Fig 2</th>
+</tr>
+<tr>
+<td>
 
 ```go
-type (
-	// ImportOrganizer is a function that allows reordering merging
-	// and splitting existing ImportDecl's obtained from source.
-	ImportOrganizer func(decls []ImportDecl) []ImportDecl
+// imports.go
+// ----------------------------------------------------------------------
 
-	// ImportDecl represents a single import block, a 1:1 mapping.
-	ImportDecl struct {
-		// FloatingComments comments that are floating above
-		// this declaration, yet in the middle of import blocks.
-		FloatingComments []*ast.CommentGroup
+// WithTransform allows overriding a custom import group transform.
+func WithTransform(transform types.ImportTransform) Option // ...
 
-		// WidowComments are comments that are floating inside this declaration unattached to specs.
-		WidowComments []*ast.CommentGroup
-
-		// Doc is the doc comment for this import gropup.
-		Doc    *ast.CommentGroup
-		Groups []ImportSpecGroup
-	}
-
-	// ImportSpecGroup maps to set of consecutive import specs delimited by
-	// whitespace and potentially having a doc comment.
-	//
-	// This type is the powerhouse of this package, allowing easy operation
-	// on sets of imports, delimited by whitespace.
-	//
-	// Contained within an ImportDecl.
-	ImportSpecGroup struct {
-		Doc   *ast.CommentGroup
-		Specs []*ast.ImportSpec
-	}
-)
-
-// RewriteImports takes same arguments as `go/parser.ParseFile` with an addition of `rewriter`
+// RewriteImportsSource takes same arguments as `go/parser.ParseFile` with an addition of `rewriter`
 // and returns original source with imports grouping modified according to the rewriter.
-func RewriteImports(filename string, src []byte, rewriter ImportOrganizer) ([]byte, error)
+func RewriteImportsSource(filename string, src []byte, opts ...Option) ([]byte, error) // ...
+
+// pkg/types/types.go
+// ----------------------------------------------------------------------
+
+// ImportTransform is a function that allows reordering merging and splitting
+// existing ImportDeclaration-s obtained from source.
+type ImportTransform func(decls []ImportDeclaration) []ImportDeclaration
+
+// ImportDeclaration represents a single import block. (i.e. the contents of the `import` statement)
+type ImportDeclaration struct {
+	// LeadingComments comments that are floating above this declaration,
+	// in the middle of import blocks.
+	LeadingComments []*ast.CommentGroup
+
+	// DetachedComments are comments that are floating inside this declaration
+	// unattached to specs (typically after the last import spec in a group).
+	DetachedComments []*ast.CommentGroup
+
+	// Doc is the doc comment for this import declaration.
+	Doc *ast.CommentGroup
+
+	// ImportGroups contains the list of underlying ast.ImportSpec-s.
+	ImportGroups []ImportGroup
+}
+
+// ImportGroup maps to set of consecutive import specs delimited by
+// whitespace and potentially having a doc comment.
+//
+// This type is the powerhouse of this package, allowing easy operation
+// on sets of imports, delimited by whitespace.
+//
+// Contained within an ImportDeclaration.
+type ImportGroup struct {
+	Doc   *ast.CommentGroup
+	Specs []*ast.ImportSpec
+}
 ```
+
+</td>
+</tr>
+</table>
 
 You can see the ease of use of this by having a look at:
 * [gofancyimports/main.go](./cmd/gofancyimports/main.go)
+  * Implementation of CLI that is using configurable autogroup transform
+* [pkg/organizer/autogroup](./pkg/organizer/autogroup/organizer.go)
+  * Implementation of Autogroup transform that is implemented using `gofancyimports` framework
 
+# Appendix
 
-# Appendix:
+## Appendix (Go Analysis Integration):
 
 Good example of how easy using `go analysis` is:
 * https://arslan.io/2020/07/07/using-go-analysis-to-fix-your-source-code/
 
+## Appendix (AST Comments)
+
+The difficulty of working with comments in Go AST mainly stems from the fact that
+Comments are do not quite behave like other AST nodes.
+
+Firstly they are not part of the tree unless they are referenced by another AST node as
+either Doc or Line End comment.
+
+And secondly they are very rigidly tied to the Byte offsets of corresponding files,
+meaning making changes to them or AST nodes to which they are attached requires
+recalculating their offset positions manually.
+
+## Appendix (Misc)
+
+* https://github.com/golang/tools/blob/6e9046bfcd34178dc116189817430a2ad1ee7b43/internal/imports/sortimports.go#L63
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 [1]: https://pkg.go.dev/golang.org/x/tools/cmd/goimports
 [2]: https://github.com/mvdan/gofumpt
-[3]: https://pkg.go.dev/golang.org/x/tools/go/analysis
+[3]: https://github.com/golang/tools/tree/master/gopls
+[4]: https://github.com/daixiang0/gci
+[5]: https://pkg.go.dev/golang.org/x/tools/go/analysis

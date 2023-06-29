@@ -5,76 +5,59 @@ package main
 
 // (before 2) [this is a general comment]
 
-// (group 1) this is a lonely single element grouping.
-import (
-	"go/format"
-)
-
 // (middle 1) [this comment says something about imports that follow?] [should pull up to the top]
-
+// (middle 2) [this comment says something about imports that follow?] [should pull up to the top]
+// (middle 3) [this comment says something about imports?] [should pull up to the top]
 import (
 	"flag"
 	_ "flag"
+	"go/parser"
+	gtoken "go/token" // this comment is just for 'go/token'
+	"sync"
+
+	"github.com/sanity-io/litter"
+
+	// This comment is for group starting with 'os' (fmt/os)
+	// (the group should be preserved as unit, but may be sorted) (fmt/os)
+	"fmt"
+	"os"
 )
 
-// (middle 2) [this comment says something about imports that follow?] [should pull up to the top]
+// (group 1) this is a lonely single element grouping.
+import "go/format"
 
 // Test
 import "image" // this is comment for 'image'
 
-
-import "sync" 
-
 // (group 2) [this is a comment describing import group] [this should cause the group to stay]
 /*
-	 (group 2) multiline p1
+ (group 2) multiline p1
 */
 /*
  (group 2) multiline p2
 */
 import (
-	"net/mail"
-
 	"net"
-
 	"net/http/httptrace"
-)
-
-// (middle 3) [this comment says something about imports?] [should pull up to the top]
-
-import (
-	"go/parser"
-	gtoken "go/token" // this comment is just for 'go/token'
+	"net/mail"
 )
 
 // (group 3) [this is a comment describing import group] [this should cause the group to stay]
+/*
+   (group 3 mid) multiline p1
+*/
+/*
+   (group 3 mid) multiline p2
+*/
+/*
+	(mid-import 2) [what does this even mean?]
+*/
 import (
-	"bytes"
-
-	/*
-	   (group 3 mid) multiline p1
-	*/
-
+	"strconv"
 	"strings"
 
-	/*
-	   (group 3 mid) multiline p2
-	*/
-
-	"strconv"
-
-	/*
-		(mid-import 2) [what does this even mean?]
-	*/
-)
-
-import (
-	// This comment is for group starting with 'os' (fmt/os) 
-	// (the group should be preserved as unit, but may be sorted) (fmt/os)
-	"os"
-	"fmt"
-
-	"github.com/sanity-io/litter"
+	// bytes group
+	"bytes"
 )
 
 // Hello This is comment (after 1)
@@ -105,3 +88,4 @@ func main() {
 }
 
 // Hello This is comment (after 3)
+

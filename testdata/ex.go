@@ -3,16 +3,18 @@
 package main
 
 import (
+	"github.com/sanity-io/litter"
 	"flag"
+)
+
+import (
 	_ "net/http/pprof"
 	"os"
 	"strconv"
-	"strings"
-
 	"gen/mocks/github.com/go-redis/redis"
-
-	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
 	"github.com/go-redis/redis"
-	"github.com/sanity-io/litter"
+	"strings"
+	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
 )
 
+func main() {}

@@ -22,8 +22,12 @@ clean:
 
 .PHONY: fmt
 fmt:
-	go run ./cmd/testanalyser -c 0 -localImportPrefix github.com/NonLogicalDev/gofancyimports -fix ./...
+	go run ./cmd/testanalyser -c 0 --group-local-prefixes github.com/NonLogicalDev/gofancyimports -debug fpstv -fix ./...
 
-.PHONY: example
-example:
-	find _example -iname '*.go' | grep -v 'result' | sed 's/.go//' | xargs -n1 sh -c 'go run ./cmd/gofancyimports -- $$1.go > $$1.result.go' --
+.PHONY: testdata
+testdata:
+	find testdata -iname '*.go' | grep -v 'result' | sed 's/.go//' | xargs -n1 sh -c 'go run ./cmd/gofancyimports fix -- $$1.go > $$1.result.go' --
+
+.PHONY: lint
+lint:
+	staticcheck ./...

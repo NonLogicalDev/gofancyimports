@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // mkstdlib generates the zstdlib.go file, containing the Go standard
 // library API symbols. It's baked into the binary to avoid scanning
