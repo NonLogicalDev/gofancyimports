@@ -10,7 +10,7 @@ build:
 
 .PHONY: release
 release:
-	$(GORELEASER) release --rm-dist --skip-publish
+	$(GORELEASER) release --rm-dist
 
 .PHONY: install
 install: build
