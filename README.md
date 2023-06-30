@@ -3,7 +3,8 @@
 A mother of all tools to enforce deterministic order of imports across your golang codebase.
 * ✅ Easy to use, configure or extend
 * ✅ Deterministically orders toughest comment-ridden imports
-* ✅ Handles comments gracefully
+* ✅ Respects existing user groupings (pinned by comments)
+* ✅ Handles comments of all varieties gracefully
 
 This repo is the home for:
 * `pkg/analyzer/autogroupimports` and `pkg/organizer/autogroup` 
@@ -228,37 +229,37 @@ The world of Go Imports formatting divides into three common approaches:
 If your organization or project happens to use a convention that does not fit within the
 group 2, and you wish to modify an existing tool like fumpt, it ends up being rather
 difficult endeavor as these tools have not been designed with simple extensiblity in mind.
-This project stems from a whish to make programmaticaly defining rules for organizing
+This project stems from a wish to make programmaticaly defining rules for organizing
 imports simple and composable.
 
 Lucky for us Go is blessed with a very well documented parser and AST implementation,
 however one of its biggest shortcomings is dealing with comments, and whitespace,
 especially around imports, because beyond the bare basics it ALL all about managing
 comments and whitespace.  With advent of tools like [`go analysis`][3] which are very
-flexible about inspecting and modifying code, a compatibel tool for programmatically
+flexible about inspecting and modifying code, a compatible tool for programmatically
 working with imports groupings is sorely needed to provide a simple way of implementing an
-organization wide import style. 
+organization wide import style to avoid editor configurations fighting each other. 
 
 
 ## Solution `gofancyimports`
 
 A tool that exposes import groups as a concept to the rule writer, and allow them to
-reorder, merge and split them deterministically.
+reorder, merge and split them deterministically, taking care of everything else.
 
 The biggest selling point of this library is that you don't have to become an AST expert
 to write an import transform using this library, everything is handled sensibly and
-automatically, you just provide a function that takes existing import gropuings (nicely
+automatically, you just provide a function that takes existing import groupings (nicely
 abstracted) and transform it into a list of groupings you desire. All comments will be
 hoisted and adjusted for you.
 
 This framework takes away the difficulty from dealing with floating comments, and
 whitespace between import spec groupings, by exposing import declarations and groupings as
 simple structs that you can freely modify.  All of the complexity of rebuilding the
-imports to your spec represented by those structs is taken care of.
+imports AST to your spec represented by those structs is taken care of.
 
 This framework can understand import clauses like this (See `Fig 1`). For example: all comments in the
 below figure are structurally parsed and when transformed are properly positioned, no
-matter how you reorder the import groups, all complexity of recomputing offsets is
+matter how you reorder the import groups, all complexity of recomputing AST offsets is
 completely abstracted away.
 
 <table>
@@ -306,7 +307,7 @@ that transforms one list of `[]ImportDelaration` that was parsed from file to an
 of `[]ImportDelaration`.
 
 You can reorder add or remove entries from those `ImportDeclarations`. 
-No comments will be lost and all comments will be magically and appropriately placed.
+No comments will be lost and all new and existing comments will be magically and appropriately placed.
 
 <table>
 <tr>
