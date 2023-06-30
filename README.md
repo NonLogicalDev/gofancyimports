@@ -62,7 +62,7 @@ import (
 	"gen/mocks/github.com/go-redis/redis"
 	"github.com/go-redis/redis"
 	"strings"
-	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+	"github.com/NonLogicalDev/gofancyimports"
 )
 ```
 
@@ -78,7 +78,7 @@ import (
 	"strings"
 
 	"gen/mocks/github.com/go-redis/redis"
-	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+	"github.com/NonLogicalDev/gofancyimports"
 	"github.com/go-redis/redis"
 	"github.com/sanity-io/litter"
 )
@@ -112,7 +112,7 @@ import (
 	"gen/mocks/github.com/go-redis/redis"
 	"github.com/go-redis/redis"
 	"strings"
-	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+	"github.com/NonLogicalDev/gofancyimports"
 )
 ```
 
@@ -131,7 +131,7 @@ import (
 
 	"github.com/go-redis/redis"
 	"github.com/sanity-io/litter"
-	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+	"github.com/NonLogicalDev/gofancyimports"
 )
 ```
 
@@ -164,7 +164,7 @@ import (
 	"gen/mocks/github.com/go-redis/redis"
 	"github.com/go-redis/redis"
 	"strings"
-	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+	"github.com/NonLogicalDev/gofancyimports"
 )
 ```
 
@@ -183,7 +183,7 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/sanity-io/litter"
 
-	"github.com/NonLogicalDev/gofancyimports/internal/stdlib"
+	"github.com/NonLogicalDev/gofancyimports"
 
 	_ "net/http/pprof"
 )
