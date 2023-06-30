@@ -2,7 +2,7 @@
 
 A mother of all tools to enforce deterministic order of imports across your golang codebase.
 * ✅ Easy to use, configure or extend
-* ✅ Deterministically orders toughest comment ridden imports
+* ✅ Deterministically orders toughest comment-ridden imports
 * ✅ Handles comments gracefully
 
 This repo is the home for:
@@ -13,6 +13,19 @@ This repo is the home for:
 	* ready to use cli with full power of `pkg/organizer/autogroup` and same command line interface as `goimports`
 * `gofancyimports`
   * the lower level library which allows manipulating import groups with ease for implementing your own group and comment aware import fixers
+ 
+## `gofancyimports` vs other tools
+
+|                                  | gofancyimports | goimports | gofumpt | gopls | gci |
+|                               -: | :------------: | :-------: | :-----: | :---: | :-: |
+| deterministic order              | ✅ | ❌ | ❌ | ❌ | ✅ |
+| graceful comment handling        | ✅ | ✅ | ✅ | ✅ | ❌ |
+| graceful whitespace handling     | ✅ | ✅ | ✅ | ✅ | ~ |
+| respect user groupings           | ✅ | ✅ | ✅ | ✅ | ❌ |
+| fully programmatic configuration | ✅ | ❌ | ❌ | ❌ | ~ |
+| golang `analysis` integration    | ✅ | ❌ | ❌ | ❓ | ✅ |
+| exports framework                | ✅ | ❌ | ❌ | ❌ | ❌ |
+
 
 ## Get the ready to use tool:
 
