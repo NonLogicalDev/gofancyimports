@@ -16,15 +16,15 @@ This repo is the home for:
  
 ## `gofancyimports` vs other tools
 
-|                                  | gofancyimports | goimports | gofumpt | gopls | gci |
-|                               -: | :------------: | :-------: | :-----: | :---: | :-: |
-| deterministic order              | ✅ | ❌ | ❌ | ❌ | ✅ |
-| graceful comment handling        | ✅ | ✅ | ✅ | ✅ | ❌ |
-| graceful whitespace handling     | ✅ | ✅ | ✅ | ✅ | ~ |
-| respect user groupings           | ✅ | ✅ | ✅ | ✅ | ❌ |
-| fully programmatic configuration | ✅ | ❌ | ❌ | ❌ | ~ |
-| golang `analysis` integration    | ✅ | ❌ | ❌ | ❓ | ✅ |
-| exports framework                | ✅ | ❌ | ❌ | ❌ | ❌ |
+|                                  | gofancyimports | goimports | gofumpt | gopls | gci | goimports-reviser |
+|                               -: | :------------: | :-------: | :-----: | :---: | :-: | :---------------: |
+| deterministic order              | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| graceful comment handling        | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | 
+| graceful whitespace handling     | ✅ | ✅ | ✅ | ✅ | ~ | ~ |
+| respect user groupings           | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| fully programmatic configuration | ✅ | ❌ | ❌ | ❌ | ~ | ~ |
+| golang `analysis` integration    | ✅ | ❌ | ❌ | ❓ | ✅ | ✅ |
+| exports framework                | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 
 ## Get the ready to use tool:
