@@ -35,6 +35,7 @@ var (
 )
 
 // WithPrinterConfig allows overriding a custom printer config.
+// Can come in handy if using special printer config as part of Analysis.
 func WithPrinterConfig(config *printer.Config) Option {
 	return func(cfg *rewriteConfig) {
 		if config != nil {
@@ -44,6 +45,9 @@ func WithPrinterConfig(config *printer.Config) Option {
 }
 
 // WithTransform allows overriding a custom import group transform.
+// This is the main extension point for this library. By setting a custom
+// function as the transform it is very simple to take complete control over the
+// import ordering.
 func WithTransform(transform types.ImportTransform) Option {
 	return func(cfg *rewriteConfig) {
 		if transform != nil {
@@ -52,8 +56,9 @@ func WithTransform(transform types.ImportTransform) Option {
 	}
 }
 
-// RewriteImportsSource takes same arguments as `go/parser.ParseFile` with an addition of `rewriter`
-// and returns original source with imports grouping modified according to the rewriter.
+// RewriteImportsSource takes a filename and source and rewrite options and applies import transforms to the file.
+//
+// Consult the [WithTransform] function for a complete usage example.
 func RewriteImportsSource(filename string, src []byte, opts ...Option) ([]byte, error) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, filename, src, parser.ParseComments)
@@ -75,6 +80,15 @@ func RewriteImportsSource(filename string, src []byte, opts ...Option) ([]byte, 
 	return output, err
 }
 
+// RewriteImportsAST is a lower level function that takes a filename and source and returns
+// an analysis.TextEdit snippet containing proposed fixes for out of the box integration
+// with analysis libraries.
+//
+// In most cases [RewriteImportsSource] is a much more ergonomic batteries-included alternative.
+//
+// Contract: This functions will only ever return a single text edit.
+//
+// Consult the [WithTransform] function for a complete usage example.
 func RewriteImportsAST(fset *token.FileSet, node *ast.File, src []byte, opts ...Option) ([]*analysis.TextEdit, error) {
 	config := rewriteConfig{
 		transform:  _defaultTransform,
