@@ -6,7 +6,7 @@ import (
 )
 
 // ImportTransform is a function that allows reordering merging and splitting
-// existing ImportDeclaration-s obtained from source.
+// existing []ImportDeclaration obtained from source.
 type ImportTransform func(decls []ImportDeclaration) []ImportDeclaration
 
 // ImportDeclaration represents a single import block. (i.e. the contents of the `import` statement)

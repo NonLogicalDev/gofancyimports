@@ -1,9 +1,11 @@
 package gofancyimports_test
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,6 +17,87 @@ import (
 )
 
 var _defaultTransform = autogroup.New()
+
+func ExampleWithTransform() {
+	transform := func(decls []types.ImportDeclaration) []types.ImportDeclaration {
+		rootDecl := types.ImportDeclaration{}
+		importGroupSTD := &types.ImportGroup{
+			Doc: &ast.CommentGroup{List: []*ast.Comment{{Text: "// stdlib"}}},
+		}
+		importRest := &types.ImportGroup{
+			Doc: &ast.CommentGroup{List: []*ast.Comment{{Text: "// thirdparty"}}},
+		}
+
+		// iterate over import blocks
+		for _, decl := range decls {
+			rootDecl.DetachedComments = append(rootDecl.DetachedComments, decl.DetachedComments...)
+			rootDecl.LeadingComments = append(rootDecl.DetachedComments, decl.LeadingComments...)
+
+			// iterate over import groups (consecutive blocks of )
+			for _, group := range decl.ImportGroups {
+
+				// iterate over import specs
+				for _, spec := range group.Specs {
+					// check if
+					if !strings.Contains(spec.Path.Value, ".") {
+						importGroupSTD.Specs = append(importGroupSTD.Specs, spec)
+					} else {
+						importRest.Specs = append(importRest.Specs, spec)
+					}
+				}
+			}
+		}
+
+		rootDecl.ImportGroups = append(rootDecl.ImportGroups, *importGroupSTD, *importRest)
+		return []types.ImportDeclaration{rootDecl}
+	}
+
+	inputSRC := `
+package main_test
+
+import (
+	"fmt"
+	"sync"
+	"github.com/stretchr/testify/assert"
+)
+
+import (
+	"net/http"
+	"github.com/stretchr/testify/require"
+)
+
+func TestSuit(t *testing.T) {}
+`
+
+	expectedSRC := `
+package main_test
+
+import (
+	// stdlib
+	"fmt"
+	"sync"
+	"net/http"
+
+	// thirdparty
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestSuit(t *testing.T) {}
+`
+
+	outputSRC, _ := gofancyimports.RewriteImportsSource(
+		"main_test.go", []byte(inputSRC),
+		gofancyimports.WithTransform(transform),
+	)
+
+	if string(expectedSRC) == string(outputSRC) {
+		fmt.Println("MATCHING")
+	}
+
+	// Output:
+	// MATCHING
+}
 
 func TestASTRewrite(t *testing.T) {
 	table := []struct {
@@ -386,8 +469,10 @@ import "C"
 import (
 	"fmt"
 	"sync"
+	"github.com/stretchr/testify/assert"
 
 	"net/http"
+	"github.com/stretchr/testify/require"
 )
 
 import tplText "text/template"
@@ -412,6 +497,9 @@ import (
 	"net/http"
 	"sync"
 	tplText "text/template"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func main() {}
