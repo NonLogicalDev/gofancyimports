@@ -1,10 +1,14 @@
 # No-Compromise Deterministic GoLang Import Management
 
+<p align="center"><img src="./assets/gofancyimports_hero.png" width="200" /></p>
+
 A mother of all tools to enforce deterministic order of imports across your golang codebase.
 * ✅ Easy to use, configure or extend
 * ✅ Deterministically orders toughest comment-ridden imports
 * ✅ Respects existing user groupings (pinned by comments)
 * ✅ Handles comments of all varieties gracefully
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 This repo is the home for:
 * `pkg/analyzer/autogroupimports` and `pkg/organizer/autogroup` 
@@ -14,10 +18,12 @@ This repo is the home for:
 	* ready to use cli with full power of `pkg/organizer/autogroup` and same command line interface as `goimports`
 * `gofancyimports`
   * the lower level library which allows manipulating import groups with ease for implementing your own group and comment aware import fixers
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
  
 ## `gofancyimports` vs other tools
 
-|                                  | gofancyimports | goimports | gofumpt | gopls | gci | goimports-reviser |
+|                                  | `gofancyimports` | [`goimports`][1] | [`gofumpt`][2] | [`gopls`][3] | [`gci`][4] | [`goimports-reviser`][6] |
 |                               -: | :------------: | :-------: | :-----: | :---: | :-: | :---------------: |
 | deterministic order              | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ |
 | graceful comment handling        | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | 
@@ -27,6 +33,8 @@ This repo is the home for:
 | golang `analysis` integration    | ✅ | ❌ | ❌ | ❓ | ✅ | ✅ |
 | exports framework                | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 ## Get the ready to use tool:
 
@@ -51,6 +59,8 @@ Flags:
   -l, --local stringArray   group local imports (comma separated prefixes)
   -w, --write               write the file back?
 ```
+
+## Examples
 
 <table>
 <tr>
@@ -207,7 +217,7 @@ import (
 </tr>
 </table>
 
-- - - - - -
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 # 🎓 Extending or implementing your own import fixer
 
@@ -224,7 +234,7 @@ The world of Go Imports formatting divides into three common approaches:
 2. Don't trust the programmer's grouping and impose a set of opinionated restrictive rules on how imports should be grouped.
 	* [`go fumpt`][2] / [`gopls`][3]
 3. Give a little bit of control via CLI parameters but not export the framework to build custom formatter.
-	* [`gci`][4]
+	* [`gci`][4] / [`goimports-reviser`][6]
 
 If your organization or project happens to use a convention that does not fit within the
 group 2, and you wish to modify an existing tool like fumpt, it ends up being rather
@@ -403,3 +413,4 @@ recalculating their offset positions manually.
 [3]: https://github.com/golang/tools/tree/master/gopls
 [4]: https://github.com/daixiang0/gci
 [5]: https://pkg.go.dev/golang.org/x/tools/go/analysis
+[6]: https://github.com/incu6us/goimports-reviser
