@@ -312,6 +312,17 @@ import (
 // [Import Decl Trailing comment: comment following the import specs]
 ```
 
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<th>Fig 1.1</th>
+</tr>
+<tr>
+<td>
+
 <details>
 <summary>
 <code>gofancyimports debug</code> output showing parsed import section
