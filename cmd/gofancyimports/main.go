@@ -7,6 +7,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -100,6 +101,20 @@ func makeFixCommand() *cobra.Command {
 
 func (c *fixCMD) RunE(cmd *cobra.Command, args []string) error {
 	var errs error
+	if len(args) == 0 {
+		srcOriginal, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("failed reading stdin: %w", err)
+		}
+
+		err = c.runRewrite("stdin.go", srcOriginal, true)
+		if err != nil {
+			return fmt.Errorf("failed fixing file: %w", err)
+		}
+
+		return errs
+	}
+
 	for _, srcPath := range args {
 		srcOriginal, err := os.ReadFile(srcPath)
 		if err != nil {
@@ -107,7 +122,7 @@ func (c *fixCMD) RunE(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		err = c.runRewrite(srcPath, srcOriginal)
+		err = c.runRewrite(srcPath, srcOriginal, false)
 		if err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("failed fixing file: %w", err))
 			continue
@@ -117,7 +132,7 @@ func (c *fixCMD) RunE(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (c *fixCMD) runRewrite(srcPath string, srcOriginal []byte) error {
+func (c *fixCMD) runRewrite(srcPath string, srcOriginal []byte, isStdin bool) error {
 	transform := autogroup.New(
 		autogroup.WithSpecFixups(autogroup.FixupEmbedPackage),
 		autogroup.WithNoDotGroupEnabled(c.groupNoDot),
@@ -150,6 +165,10 @@ func (c *fixCMD) runRewrite(srcPath string, srcOriginal []byte) error {
 		return nil
 	}
 
+	if c.writeFile && isStdin {
+		return fmt.Errorf("can't write to stdin")
+	}
+
 	// Write back.
 	if !bytes.Equal(srcOriginal, srcRewritten) {
 		err = os.WriteFile(srcPath, srcRewritten, 0x666)
@@ -158,11 +177,26 @@ func (c *fixCMD) runRewrite(srcPath string, srcOriginal []byte) error {
 		}
 		fmt.Println("Written:", srcPath)
 	}
+
 	return nil
 }
 
 func (c *debugCMD) RunE(cmd *cobra.Command, args []string) error {
 	var errs error
+	if len(args) == 0 {
+		srcOriginal, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("failed reading stdin: %w", err)
+		}
+
+		err = c.runDebug("stdin.go", srcOriginal)
+		if err != nil {
+			return fmt.Errorf("failed fixing file: %w", err)
+		}
+
+		return errs
+	}
+
 	for _, srcPath := range args {
 		srcOriginal, err := os.ReadFile(srcPath)
 		if err != nil {
@@ -177,7 +211,7 @@ func (c *debugCMD) RunE(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	return nil
+	return errs
 }
 
 func makeDebugCommand() *cobra.Command {
