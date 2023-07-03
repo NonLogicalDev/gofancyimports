@@ -281,31 +281,154 @@ completely abstracted away.
 
 
 ```go
+package example
+
+// [Import Decl Leading Comment: leading comment (not included as it is located prior to import group block)]
 
 import "singleImport" // [Import Spec Comment: singleImport]
 
-// [Import Decl Floating Comment: hoisted to Import Decl that follows]
+// [Import Decl Detached Comment: hoisted to Import Decl that follows]
 
 // [Import Decl Doc Comment: for entire import block]
 /*
-	Multiline comments are understood and handled properly.
+	Multiline comments are understood and handled properly (import level).
 */
 import (
 	"pkg1" // [Import Spec Comment: pkg1]
 	"pkg2"
 
-	// [Import Decl Widow comment 1: unattached to Import Specs, but exposed in enclosing Import Decl]
+	// [Import Decl Detached comment 1: unattached to Import Specs, but exposed in enclosing Import Decl]
 
 	// [Import Spec Group Doc Comment: (pkg3, pkg4)]
 	/*
-		Multiline comments are understood and handled properly.
+		Multiline comments are understood and handled properly (spec level).
 	*/
 	"pkg3"
 	"pkg4"
 
-	// [Import Decl Widow comment 2: unattached to Import Specs, but exposed in enclosing Import Decl]
+	// [Import Decl Detached comment 2: unattached to Import Specs, but exposed in enclosing Import Decl]
 )
+
+// [Import Decl Trailing comment: comment following the import specs]
 ```
+
+<details>
+<summary>
+<code>gofancyimports debug</code> output showing parsed import section
+</summary>
+
+```
+[
+  {
+    "CommentDoc": null,
+    "CommentLeading": null,
+    "CommentDetached": null,
+    "Groups": [
+      {
+        "CommentDoc": null,
+        "Specs": [
+          [
+            "\"singleImport\"// [Import Spec Comment: singleImport]",
+            ""
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "CommentDoc": {
+      "CommentGroup": [
+        {
+          "Lines": [
+            "// [Import Decl Doc Comment: for entire import block]"
+          ]
+        },
+        {
+          "Lines": [
+            "/*",
+            "\tMultiline comments are understood and handled properly (import level).",
+            "*/"
+          ]
+        }
+      ]
+    },
+    "CommentLeading": [
+      {
+        "CommentGroup": [
+          {
+            "Lines": [
+              "// [Import Decl Detached Comment: hoisted to Import Decl that follows]"
+            ]
+          }
+        ]
+      }
+    ],
+    "CommentDetached": [
+      {
+        "CommentGroup": [
+          {
+            "Lines": [
+              "// [Import Decl Detached comment 1: unattached to Import Specs, but exposed in enclosing Import Decl]"
+            ]
+          }
+        ]
+      },
+      {
+        "CommentGroup": [
+          {
+            "Lines": [
+              "// [Import Decl Detached comment 2: unattached to Import Specs, but exposed in enclosing Import Decl]"
+            ]
+          }
+        ]
+      }
+    ],
+    "Groups": [
+      {
+        "CommentDoc": null,
+        "Specs": [
+          [
+            "\"pkg1\"// [Import Spec Comment: pkg1]",
+            ""
+          ],
+          [
+            "\"pkg2\""
+          ]
+        ]
+      },
+      {
+        "CommentDoc": {
+          "CommentGroup": [
+            {
+              "Lines": [
+                "// [Import Spec Group Doc Comment: (pkg3, pkg4)]"
+              ]
+            },
+            {
+              "Lines": [
+                "/*",
+                "\t\tMultiline comments are understood and handled properly (spec level).",
+                "\t*/"
+              ]
+            }
+          ]
+        },
+        "Specs": [
+          [
+            "\"pkg3\""
+          ],
+          [
+            "\"pkg4\""
+          ]
+        ]
+      }
+    ]
+  }
+]
+
+```
+
+</details>
 
 </td>
 </tr>

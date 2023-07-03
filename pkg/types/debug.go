@@ -19,11 +19,11 @@ func ImportDeclarationsToJSON(fset *token.FileSet, decls []ImportDeclaration) js
 
 func ImportDelarationToJSON(fset *token.FileSet, id ImportDeclaration) json.RawMessage {
 	r := struct {
-		CommentDoc      json.RawMessage   `json:"comment.doc"`
-		CommentLeading  []json.RawMessage `json:"comment.leading"`
-		CommentDetached []json.RawMessage `json:"comment.detached"`
+		CommentDoc      json.RawMessage
+		CommentLeading  []json.RawMessage
+		CommentDetached []json.RawMessage
 
-		Groups []json.RawMessage `json:"groups"`
+		Groups []json.RawMessage
 	}{
 		CommentDoc: CommentGroupToJSON(id.Doc),
 	}
@@ -41,8 +41,8 @@ func ImportDelarationToJSON(fset *token.FileSet, id ImportDeclaration) json.RawM
 
 func ImportGroupToJSON(fset *token.FileSet, isg ImportGroup) json.RawMessage {
 	r := struct {
-		CommentDoc json.RawMessage `json:"comment.doc"`
-		Specs      [][]string      `json:"specs"`
+		CommentDoc json.RawMessage
+		Specs      [][]string
 	}{
 		CommentDoc: CommentGroupToJSON(isg.Doc),
 	}
@@ -57,10 +57,10 @@ func CommentGroupToJSON(group *ast.CommentGroup) json.RawMessage {
 		return nil
 	}
 	r := struct {
-		Comments []json.RawMessage `json:"comments"`
+		CommentGroup []json.RawMessage
 	}{}
 	for _, c := range group.List {
-		r.Comments = append(r.Comments, CommentToJSON(c))
+		r.CommentGroup = append(r.CommentGroup, CommentToJSON(c))
 	}
 	return mustMarshalJson(r)
 }
@@ -70,9 +70,9 @@ func CommentToJSON(c *ast.Comment) json.RawMessage {
 		return nil
 	}
 	return mustMarshalJson(struct {
-		Text []string `json:"text"`
+		Lines []string
 	}{
-		Text: splitLines(c.Text),
+		Lines: splitLines(c.Text),
 	})
 }
 
