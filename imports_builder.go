@@ -47,8 +47,12 @@ func buildImportDecl(offset token.Pos, decl types.ImportDeclaration) (ast.Decl, 
 	// Place the doc comment at the current offset if it exists and calculate newlines.
 	if astDecl.Doc != nil {
 		newLines = buildCommentListNewlines(astDecl.Doc.List, newLines)
+
 		// Move offset to the next character after comment end.
-		offset = astDecl.Doc.End()
+		offset = astDecl.Doc.End() + 1
+
+		// Assert newline at the end of the comment group.
+		newLines = append(newLines, offset)
 	}
 
 	// Place declaration at the offset.
@@ -126,8 +130,12 @@ func buildImportSpec(offset token.Pos, astSpec *ast.ImportSpec, astSpecDoc *ast.
 	if astSpecDoc != nil {
 		astSpec.Doc = copyCommentGroup(astSpecDoc)
 		astutils.ShiftCommentGroupPos(offset-astSpec.Doc.Pos(), astSpec.Doc)
+
 		newLines = buildCommentListNewlines(astSpec.Doc.List, newLines)
 		offset = astSpec.Doc.End() + 1
+
+		// Assert newline at the end of the comment group.
+		newLines = append(newLines, offset)
 	}
 
 	// Place the identity value

@@ -506,6 +506,69 @@ func main() {}
 `,
 			transform: _defaultTransform,
 		},
+		{
+			name: "example_multilines",
+			inputSrc: `
+package example
+
+// [Import Decl Leading Comment: leading comment (not included as it is located prior to import group block)]
+
+import "singleImport" // [Import Spec Comment: singleImport]
+
+// [Import Decl Detached Comment: hoisted to Import Decl that follows]
+
+// [Import Decl Doc Comment: for entire import block]
+/*
+	Multiline comments are understood and handled properly.
+*/
+import (
+	"pkg1" // [Import Spec Comment: pkg1]
+	"pkg2"
+
+	// [Import Decl Detached comment 1: unattached to Import Specs, but exposed in enclosing Import Decl]
+
+	// [Import Spec Group Doc Comment: (pkg3, pkg4)]
+	/*
+		Multiline comments are understood and handled properly.
+	*/
+	"pkg3"
+	"pkg4"
+
+	// [Import Decl Detached comment 2: unattached to Import Specs, but exposed in enclosing Import Decl]
+)
+
+// [Import Decl Trailing comment: comment following the import specs]
+`,
+			expectedSrc: `
+package example
+
+// [Import Decl Leading Comment: leading comment (not included as it is located prior to import group block)]
+
+// [Import Decl Detached Comment: hoisted to Import Decl that follows]
+import "singleImport" // [Import Spec Comment: singleImport]
+
+// [Import Decl Doc Comment: for entire import block]
+/*
+	Multiline comments are understood and handled properly.
+*/
+// [Import Decl Detached comment 1: unattached to Import Specs, but exposed in enclosing Import Decl]
+// [Import Decl Detached comment 2: unattached to Import Specs, but exposed in enclosing Import Decl]
+import (
+	"pkg1" // [Import Spec Comment: pkg1]
+	"pkg2"
+
+	// [Import Spec Group Doc Comment: (pkg3, pkg4)]
+	/*
+		Multiline comments are understood and handled properly.
+	*/
+	"pkg3"
+	"pkg4"
+)
+
+// [Import Decl Trailing comment: comment following the import specs]
+`,
+			transform: _defaultTransform,
+		},
 	}
 
 	for _, tt := range table {
