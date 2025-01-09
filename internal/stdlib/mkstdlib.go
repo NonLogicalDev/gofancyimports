@@ -70,6 +70,10 @@ func main() {
 		mustOpen(api("go1.17.txt")),
 		mustOpen(api("go1.18.txt")),
 		mustOpen(api("go1.19.txt")),
+		mustOpen(api("go1.20.txt")),
+		mustOpen(api("go1.21.txt")),
+		mustOpen(api("go1.22.txt")),
+		mustOpen(api("go1.23.txt")),
 
 		// The API of the syscall/js package needs to be computed explicitly,
 		// because it's not included in the GOROOT/api/go1.*.txt files at this time.
