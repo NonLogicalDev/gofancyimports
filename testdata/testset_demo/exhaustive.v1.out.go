@@ -60,6 +60,15 @@ import (
 	"bytes"
 )
 
+// Test 2
+import "pprof" // this is comment for 'pprof'
+
+// Test 3
+import (
+	"pprof2" // this is comment for 'pprof2'
+	"pprof3" // this is comment for 'pprof3'
+)
+
 // Hello This is comment (after 1)
 
 /*
@@ -88,4 +97,3 @@ func main() {
 }
 
 // Hello This is comment (after 3)
-

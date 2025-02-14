@@ -6,7 +6,7 @@ package main
 // Random comment 2
 
 // No default import group.
-import (// Random widow comment
+import ( // Random widow comment
 
 	"a"
 

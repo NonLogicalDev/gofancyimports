@@ -1,0 +1,15 @@
+package test
+
+import (
+	"fmt"
+	"sync"
+
+	"net/http"
+)
+
+import tplText "text/template"
+
+// pinned declaration
+import tplHtml "html/template"
+
+func main() {}

@@ -1,0 +1,10 @@
+package test
+
+import (
+	"fmt"
+	"sync"
+
+	"net/http"
+)
+
+func main() {}

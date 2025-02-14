@@ -1,0 +1,13 @@
+package test;
+
+// extra
+import (
+	// first import
+	"fmt"
+	"sync"
+
+	// second import
+	"net/http"
+)
+
+func main() {}
