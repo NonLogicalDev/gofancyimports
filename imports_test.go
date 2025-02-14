@@ -5,6 +5,8 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,7 +18,39 @@ import (
 	"github.com/NonLogicalDev/gofancyimports/pkg/types"
 )
 
-var _defaultTransform = autogroup.New()
+const _ExampleWithTransformInput = `
+package main_test
+
+import (
+	"fmt"
+	"sync"
+	"github.com/stretchr/testify/assert"
+)
+
+import (
+	"net/http"
+	"github.com/stretchr/testify/require"
+)
+
+func TestSuit(t *testing.T) {}
+`
+
+const _ExampleWithTransformOutput = `
+package main_test
+
+import (
+	// stdlib
+	"fmt"
+	"sync"
+	"net/http"
+
+	// thirdparty
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestSuit(t *testing.T) {}
+`
 
 func ExampleWithTransform() {
 	transform := func(decls []types.ImportDeclaration) []types.ImportDeclaration {
@@ -52,39 +86,8 @@ func ExampleWithTransform() {
 		return []types.ImportDeclaration{rootDecl}
 	}
 
-	inputSRC := `
-package main_test
-
-import (
-	"fmt"
-	"sync"
-	"github.com/stretchr/testify/assert"
-)
-
-import (
-	"net/http"
-	"github.com/stretchr/testify/require"
-)
-
-func TestSuit(t *testing.T) {}
-`
-
-	expectedSRC := `
-package main_test
-
-import (
-	// stdlib
-	"fmt"
-	"sync"
-	"net/http"
-
-	// thirdparty
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-)
-
-func TestSuit(t *testing.T) {}
-`
+	inputSRC := _ExampleWithTransformInput
+	expectedSRC := _ExampleWithTransformOutput
 
 	outputSRC, _ := gofancyimports.RewriteImportsSource(
 		"main_test.go", []byte(inputSRC),
@@ -99,35 +102,17 @@ func TestSuit(t *testing.T) {}
 	// MATCHING
 }
 
-func TestASTRewrite(t *testing.T) {
-	table := []struct {
-		name        string
-		inputSrc    string
-		expectedSrc string
-		expectedErr string
-		transform   types.ImportTransform
-	}{
-		{
-			name: "noimports_hard",
-			inputSrc: `
-package test;func main() {}
-`,
-			expectedSrc: `
-package test;
+func TestTestset00(t *testing.T) {
+	runTestSetFromFolder(t, "testdata/testset_00", ".in.go", ".out.go", func(testname TestName) types.ImportTransform {
+		return autogroup.New()
+	})
+}
 
-// extra
-import (
-	// first import
-	"fmt"
-	"sync"
-
-	// second import
-	"net/http"
-)
-
-func main() {}
-`,
-			transform: func(decls []types.ImportDeclaration) []types.ImportDeclaration {
+func TestTestset01(t *testing.T) {
+	runTestSetFromFolder(t, "testdata/testset_01", ".go.in", ".go.out", func(testname TestName) types.ImportTransform {
+		switch testname {
+		case "noimports_hard_custom_transform":
+			return func(decls []types.ImportDeclaration) []types.ImportDeclaration {
 				return []types.ImportDeclaration{
 					{
 						Doc: &ast.CommentGroup{
@@ -176,427 +161,96 @@ func main() {}
 						},
 					},
 				}
-			},
-		},
-		{
-			name: "basic",
-			inputSrc: `
-package test
+			}
+		}
 
-import (
-	"fmt"
-	"sync"
+		return autogroup.New()
+	})
+}
 
-	"net/http"
+type (
+	TestName   = string
+	TestConfig struct {
+		name   string
+		srcIn  string
+		srcOut string
+	}
+
+	TestFileType int
 )
 
-func main() {}
-`,
-			expectedSrc: `
-package test
-
-import (
-	"fmt"
-	"net/http"
-	"sync"
+const (
+	TestFileInvalid TestFileType = iota
+	TestFileInput
+	TestFileOutput
 )
 
-func main() {}
-`,
-			transform: _defaultTransform,
-		},
-		{
-			name: "basic_named_group",
-			inputSrc: `
-package test
-
-import (
-	"fmt"
-	"sync"
-
-	// http group
-	"net/http"
-)
-
-func main() {}
-`,
-			expectedSrc: `
-package test
-
-import (
-	"fmt"
-	"sync"
-
-	// http group
-	"net/http"
-)
-
-func main() {}
-`,
-			transform: _defaultTransform,
-		},
-		{
-			name: "basic_named_group_firstline",
-			inputSrc: `
-package test
-
-import (
-	// stdlib
-	"fmt"
-	"sync"
-
-	// http group
-	"net/http"
-)
-
-func main() {}
-`,
-			expectedSrc: `
-package test
-
-import (
-	// stdlib
-	"fmt"
-	"sync"
-
-	// http group
-	"net/http"
-)
-
-func main() {}
-`,
-			transform: _defaultTransform,
-		},
-		{
-			name: "comments_basics",
-			inputSrc: `
-package test
-
-// before comment
-
-import (
-	"fmt"
-	"sync"
-
-	"net/http"
-)
-
-// after comment
-
-func main() {}
-`,
-			expectedSrc: `
-package test
-
-// before comment
-
-import (
-	"fmt"
-	"net/http"
-	"sync"
-)
-
-// after comment
-
-func main() {}
-`,
-			transform: _defaultTransform,
-		},
-		{
-			name: "comments_doc",
-			inputSrc: `
-package test
-
-// before comment
-
-// doc comment
-import (
-	"fmt"
-	"sync"
-
-	"net/http"
-)
-
-// after comment
-
-func main() {}
-`,
-			expectedSrc: `
-package test
-
-// before comment
-
-// doc comment
-import (
-	"fmt"
-	"net/http"
-	"sync"
-)
-
-// after comment
-
-func main() {}
-`,
-			transform: _defaultTransform,
-		},
-		{
-			name: "comments_detached",
-			inputSrc: `
-package test
-
-// before comment
-
-// doc comment
-import (
-	"fmt"
-	"sync"
-
-	// detached comment 1
-
-	"net/http"
-
-	// detached comment 2
-)
-
-// after comment
-
-func main() {}
-`,
-			expectedSrc: `
-package test
-
-// before comment
-
-// doc comment
-// detached comment 1
-// detached comment 2
-import (
-	"fmt"
-	"net/http"
-	"sync"
-)
-
-// after comment
-
-func main() {}
-`,
-			transform: _defaultTransform,
-		},
-		{
-			name: "multiple_decls",
-			inputSrc: `
-package test
-
-import (
-	"fmt"
-	"sync"
-
-	"net/http"
-)
-
-import tplText "text/template"
-
-import tplHtml "html/template"
-
-func main() {}
-`,
-			expectedSrc: `
-package test
-
-import (
-	"fmt"
-	tplHtml "html/template"
-	"net/http"
-	"sync"
-	tplText "text/template"
-)
-
-func main() {}
-`,
-			transform: _defaultTransform,
-		},
-		{
-			name: "multiple_decls_pinned",
-			inputSrc: `
-package test
-
-import (
-	"fmt"
-	"sync"
-
-	"net/http"
-)
-
-import tplText "text/template"
-
-// pinned declaration
-import tplHtml "html/template"
-
-func main() {}
-`,
-			expectedSrc: `
-package test
-
-import (
-	"fmt"
-	"net/http"
-	"sync"
-	tplText "text/template"
-)
-
-// pinned declaration
-import tplHtml "html/template"
-
-func main() {}
-`,
-			transform: _defaultTransform,
-		},
-		{
-			name: "cgo_import",
-			inputSrc: `
-package test
-
-/*
-#cgo CFLAGS: -I${SRCDIR}/ctestlib
-#cgo LDFLAGS: -Wl,-rpath,${SRCDIR}/ctestlib
-#cgo LDFLAGS: -L${SRCDIR}/ctestlib
-#cgo LDFLAGS: -ltest
-
-#include <test.h>
-*/
-import "C"
-
-import (
-	"fmt"
-	"sync"
-	"github.com/stretchr/testify/assert"
-
-	"net/http"
-	"github.com/stretchr/testify/require"
-)
-
-import tplText "text/template"
-
-func main() {}
-`,
-			expectedSrc: `
-package test
-
-/*
-#cgo CFLAGS: -I${SRCDIR}/ctestlib
-#cgo LDFLAGS: -Wl,-rpath,${SRCDIR}/ctestlib
-#cgo LDFLAGS: -L${SRCDIR}/ctestlib
-#cgo LDFLAGS: -ltest
-
-#include <test.h>
-*/
-import "C"
-
-import (
-	"fmt"
-	"net/http"
-	"sync"
-	tplText "text/template"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-)
-
-func main() {}
-`,
-			transform: _defaultTransform,
-		},
-		{
-			name: "example_multilines",
-			inputSrc: `
-package example
-
-// [Import Decl Leading Comment: leading comment (not included as it is located prior to import group block)]
-
-import "singleImport" // [Import Spec Comment: singleImport]
-
-// [Import Decl Detached Comment: hoisted to Import Decl that follows]
-
-// [Import Decl Doc Comment: for entire import block]
-/*
-	Multiline comments are understood and handled properly.
-*/
-import (
-	"pkg1" // [Import Spec Comment: pkg1]
-	"pkg2"
-
-	// [Import Decl Detached comment 1: unattached to Import Specs, but exposed in enclosing Import Decl]
-
-	// [Import Spec Group Doc Comment: (pkg3, pkg4)]
-	/*
-		Multiline comments are understood and handled properly.
-	*/
-	"pkg3"
-	"pkg4"
-
-	// [Import Decl Detached comment 2: unattached to Import Specs, but exposed in enclosing Import Decl]
-)
-
-// [Import Decl Trailing comment: comment following the import specs]
-`,
-			expectedSrc: `
-package example
-
-// [Import Decl Leading Comment: leading comment (not included as it is located prior to import group block)]
-
-// [Import Decl Detached Comment: hoisted to Import Decl that follows]
-import "singleImport" // [Import Spec Comment: singleImport]
-
-// [Import Decl Doc Comment: for entire import block]
-/*
-	Multiline comments are understood and handled properly.
-*/
-// [Import Decl Detached comment 1: unattached to Import Specs, but exposed in enclosing Import Decl]
-// [Import Decl Detached comment 2: unattached to Import Specs, but exposed in enclosing Import Decl]
-import (
-	"pkg1" // [Import Spec Comment: pkg1]
-	"pkg2"
-
-	// [Import Spec Group Doc Comment: (pkg3, pkg4)]
-	/*
-		Multiline comments are understood and handled properly.
-	*/
-	"pkg3"
-	"pkg4"
-)
-
-// [Import Decl Trailing comment: comment following the import specs]
-`,
-			transform: _defaultTransform,
-		},
+var TestRerunCount = 3
+
+func runTestSetFromFolder(t *testing.T, testsetpath string, suffixin string, suffixout string, transformpicker func(TestName) types.ImportTransform) {
+	table := make(map[TestName]TestConfig)
+
+	direntries, err := os.ReadDir(testsetpath)
+	require.NoError(t, err)
+
+	for _, de := range direntries {
+		if de.IsDir() {
+			continue
+		}
+
+		var (
+			name string
+			src  []byte
+			typ  TestFileType
+
+			err error
+		)
+		if tname := strings.TrimSuffix(de.Name(), suffixin); tname != de.Name() {
+			src, err = os.ReadFile(filepath.Join(testsetpath, de.Name()))
+			require.NoError(t, err)
+			typ = TestFileInput
+			name = tname
+		}
+		if tname := strings.TrimSuffix(de.Name(), suffixout); tname != de.Name() {
+			src, err = os.ReadFile(filepath.Join(testsetpath, de.Name()))
+			require.NoError(t, err)
+			typ = TestFileOutput
+			name = tname
+		}
+		if typ == TestFileInvalid {
+			continue
+		}
+
+		v := table[name]
+		v.name = name
+		if typ == TestFileInput {
+			v.srcIn = string(src)
+		} else if typ == TestFileOutput {
+			v.srcOut = string(src)
+		}
+		table[name] = v
 	}
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
-			inputSrc := tt.inputSrc[1 : len(tt.inputSrc)-1]
-			expectedSrc := tt.expectedSrc[1 : len(tt.expectedSrc)-1]
+			transform := transformpicker(tt.name)
 
-			fset := token.NewFileSet()
-			file, err := parser.ParseFile(fset, "input.go", inputSrc, parser.ParseComments)
-			if err != nil {
+			actualSrc := tt.srcIn
+			for i := 0; i < TestRerunCount; i++ {
+				fset := token.NewFileSet()
+				file, err := parser.ParseFile(fset, "input.go", actualSrc, parser.ParseComments)
 				require.NoError(t, err)
-			}
 
-			edits, err := gofancyimports.RewriteImportsAST(fset, file, []byte(inputSrc), gofancyimports.WithTransform(tt.transform))
-			if tt.expectedErr != "" {
-				assert.ErrorContains(t, err, tt.expectedErr)
-				return
-			}
-
-			if err != nil {
+				edits, err := gofancyimports.RewriteImportsAST(fset, file, []byte(actualSrc), gofancyimports.WithTransform(transform))
 				require.NoError(t, err)
-			}
-			actualSrc := inputSrc
-			if len(edits) > 0 {
-				actualSrc = string(gofancyimports.ApplyTextEdit(fset, file, []byte(inputSrc), edits[0]))
-			}
-			if !assert.Equal(t, expectedSrc, actualSrc) {
-				t.Logf("actual src:\n%v", actualSrc)
+
+				if len(edits) > 0 {
+					actualSrc = string(gofancyimports.ApplyTextEdit(fset, file, []byte(actualSrc), edits[0]))
+				}
+				if !assert.Equal(t, tt.srcOut, actualSrc) {
+					t.Logf("actual src:\n%v", actualSrc)
+					t.FailNow()
+				}
 			}
 		})
 	}

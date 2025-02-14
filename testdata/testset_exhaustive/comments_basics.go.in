@@ -1,0 +1,14 @@
+package test
+
+// before comment
+
+import (
+	"fmt"
+	"sync"
+
+	"net/http"
+)
+
+// after comment
+
+func main() {}

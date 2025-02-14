@@ -1,0 +1,11 @@
+package test
+
+import (
+	"fmt"
+	tplHtml "html/template"
+	"net/http"
+	"sync"
+	tplText "text/template"
+)
+
+func main() {}

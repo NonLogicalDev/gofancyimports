@@ -1,0 +1,24 @@
+package test
+
+/*
+#cgo CFLAGS: -I${SRCDIR}/ctestlib
+#cgo LDFLAGS: -Wl,-rpath,${SRCDIR}/ctestlib
+#cgo LDFLAGS: -L${SRCDIR}/ctestlib
+#cgo LDFLAGS: -ltest
+
+#include <test.h>
+*/
+import "C"
+
+import (
+	"fmt"
+	"sync"
+	"github.com/stretchr/testify/assert"
+
+	"net/http"
+	"github.com/stretchr/testify/require"
+)
+
+import tplText "text/template"
+
+func main() {}

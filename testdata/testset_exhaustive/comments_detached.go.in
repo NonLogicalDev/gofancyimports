@@ -1,0 +1,19 @@
+package test
+
+// before comment
+
+// doc comment
+import (
+	"fmt"
+	"sync"
+
+	// detached comment 1
+
+	"net/http"
+
+	// detached comment 2
+)
+
+// after comment
+
+func main() {}

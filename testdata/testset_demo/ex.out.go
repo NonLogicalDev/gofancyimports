@@ -16,4 +16,3 @@ import (
 )
 
 func main() {}
-
