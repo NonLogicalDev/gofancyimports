@@ -1,0 +1,73 @@
+name: Update Nix Flake
+
+on:
+  schedule:
+    # Run every Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-flake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Setup Nix with flakes
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Update flake lock
+        run: |
+          nix flake update
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if [ -n "$(git status --porcelain flake.lock)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure Git
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Commit changes
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git add flake.lock
+          git commit -m "chore: update nix flake lock file"
+
+      - name: Create Pull Request
+        if: steps.check-changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update nix flake lock file"
+          title: "chore: update nix flake dependencies"
+          body: |
+            This PR updates Nix flake dependencies.
+
+            **Changes:**
+            - Updated `flake.lock` with latest dependency versions
+
+            This PR was automatically created by the weekly Nix flake update workflow.
+          branch: chore/update-nix-flake
+          delete-branch: true
+          labels: |
+            dependencies
+            nix
+            automated
+

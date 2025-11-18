@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pmezard/go-difflib/difflib"
 	"github.com/spf13/cobra"
@@ -31,8 +32,9 @@ type debugCMD struct {
 type fixCMD struct {
 	*cobra.Command
 
-	writeFile bool
-	showDiff  bool
+	writeFile  bool
+	showDiff   bool
+	recursive  bool
 
 	localPrefixes []string
 	groupEffect   bool
@@ -95,6 +97,9 @@ func makeFixCommand() *cobra.Command {
 	cmdFix.PersistentFlags().BoolVar(&cmdFix.groupEffect,
 		"group-effect", false,
 		"group side effect imports")
+	cmdFix.PersistentFlags().BoolVarP(&cmdFix.recursive,
+		"recursive", "r", false,
+		"recurse into subdirectories when processing directories")
 
 	return cmdFix.Command
 }
@@ -116,20 +121,75 @@ func (c *fixCMD) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, srcPath := range args {
-		srcOriginal, err := os.ReadFile(srcPath)
+		paths, err := discoverPaths(srcPath, c.recursive)
 		if err != nil {
-			errs = multierr.Append(errs, fmt.Errorf("failed reading file: %w", err))
+			errs = multierr.Append(errs, fmt.Errorf("failed to discover paths for %s: %w", srcPath, err))
 			continue
 		}
 
-		err = c.runRewrite(srcPath, srcOriginal, false)
-		if err != nil {
-			errs = multierr.Append(errs, fmt.Errorf("failed fixing file: %w", err))
-			continue
+		for _, path := range paths {
+			srcOriginal, err := os.ReadFile(path)
+			if err != nil {
+				errs = multierr.Append(errs, fmt.Errorf("failed reading file: %w", err))
+				continue
+			}
+
+			err = c.runRewrite(path, srcOriginal, false)
+			if err != nil {
+				errs = multierr.Append(errs, fmt.Errorf("failed fixing file: %w", err))
+				continue
+			}
 		}
 	}
 
 	return nil
+}
+
+// discoverPaths returns a list of Go file paths from the given path.
+// If the path is a directory, it walks it to find all .go files.
+// If recursive is true, it recursively walks subdirectories.
+// If the path is a file, it returns it as a single-element slice.
+func discoverPaths(path string, recursive bool) ([]string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat %s: %w", path, err)
+	}
+
+	var paths []string
+
+	if info.IsDir() {
+		if recursive {
+			// Recursively find all .go files in the directory
+			err := filepath.Walk(path, func(walkPath string, walkInfo os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if !walkInfo.IsDir() && strings.HasSuffix(walkPath, ".go") {
+					paths = append(paths, walkPath)
+				}
+				return nil
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to walk directory %s: %w", path, err)
+			}
+		} else {
+			// Only find .go files in the immediate directory
+			entries, err := os.ReadDir(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read directory %s: %w", path, err)
+			}
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".go") {
+					paths = append(paths, filepath.Join(path, entry.Name()))
+				}
+			}
+		}
+	} else {
+		// Regular file
+		paths = append(paths, path)
+	}
+
+	return paths, nil
 }
 
 func (c *fixCMD) runRewrite(srcPath string, srcOriginal []byte, isStdin bool) error {

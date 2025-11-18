@@ -103,13 +103,13 @@ func ExampleWithTransform() {
 }
 
 func TestTestset00(t *testing.T) {
-	runTestSetFromFolder(t, "testdata/testset_00", ".in.go", ".out.go", func(testname TestName) types.ImportTransform {
+	runTestSetFromFolder(t, "testdata/testset_demo", ".in.go", ".out.go", func(testname TestName) types.ImportTransform {
 		return autogroup.New()
 	})
 }
 
 func TestTestset01(t *testing.T) {
-	runTestSetFromFolder(t, "testdata/testset_01", ".go.in", ".go.out", func(testname TestName) types.ImportTransform {
+	runTestSetFromFolder(t, "testdata/testset_exhaustive", ".go.in", ".go.out", func(testname TestName) types.ImportTransform {
 		switch testname {
 		case "noimports_hard_custom_transform":
 			return func(decls []types.ImportDeclaration) []types.ImportDeclaration {

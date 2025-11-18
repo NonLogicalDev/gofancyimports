@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+METADATA="$PROJECT_ROOT/pkg_meta.json"
+VERSION=$(jq -r '.version' "$METADATA")
+
+# Git Status Check
+echo "[+] Checking git status..."
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Error: Git worktree is not clean"
+  git status --short
+  exit 1
+fi
+
+# Get nixpkgs path from flake
+echo "[+] Getting nixpkgs path from flake..."
+FLAKE_URL=$(nix flake metadata --json -- "$PROJECT_ROOT" | jq -r '.url')
+if [ -z "$FLAKE_URL" ] || [ "$FLAKE_URL" = "null" ]; then
+  echo "Error: Could not determine flake URL"
+  exit 1
+fi
+
+echo "[+] Evaluating nixpkgs path from flake..."
+NIXPKGS_NIX_PATH=$(nix eval --impure --raw --expr "(builtins.getFlake \"$FLAKE_URL\").inputs.nixpkgs.outPath")
+PROJECT_NIX_PATH=$(nix eval --impure --raw --expr "(builtins.getFlake \"$FLAKE_URL\").outPath")
+
+echo "Computing new vendor hash..."
+echo "Using nixpkgs from: $NIXPKGS_NIX_PATH"
+
+fetch_go_vendor_hash_for() {
+  local pkg_nix_path=$1
+  local pkg_version=$(echo $2 | jq -R .)
+
+  # Build with a fake hash and capture the actual hash from error output
+  OUTPUT=$(nix-build --impure --expr "
+    let pkgs = import $NIXPKGS_NIX_PATH {};
+    in ((import ./flake_go_pkgs.nix) {
+      version = $pkg_version;
+      vendorHash = pkgs.lib.fakeHash;
+      srcDir = $PROJECT_NIX_PATH;
+      inherit pkgs;
+    }).$pkg_nix_path
+  " 2>&1 || true)
+
+  # Extract the hash from the error message
+  NEW_HASH=$(perl -ne 'print "$1\n" if /got:\s+(\S+)/' <<<"$OUTPUT")
+
+  # Validate the hash
+  if [ -z "$NEW_HASH" ] || [ ${#NEW_HASH} -lt 10 ]; then
+    echo 2>&1 "Error: Could not extract vendor hash from build output"
+    echo 2>&1 "Build output:"
+    echo 2>&1 "$OUTPUT"
+    exit 1
+  fi
+
+  echo "$NEW_HASH"
+}
+
+PKG_GOFANCYIMPORTS_HASH=$(fetch_go_vendor_hash_for "gofancyimports" "$VERSION")
+
+# Update pkg_meta.json
+jq \
+  --arg gofancyimports "$PKG_GOFANCYIMPORTS_HASH" \
+  '.
+      | (.nixVendorHash = {$gofancyimports})
+  ' \
+  "$METADATA" > "${METADATA}.tmp"
+
+mv "${METADATA}.tmp" "$METADATA"
+
+echo "Updated $METADATA successfully"
