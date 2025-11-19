@@ -1,26 +1,30 @@
-name: Build with Nix
+name: Nix Build Checks
 
 on:
-  push:
-    branches:
-      - main
-      - 'main-*'
-  pull_request:
-    branches:
-      - main
-      - 'main-*'
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      run-linux:
+        description: 'Run Linux builds'
+        required: false
+        type: boolean
+        default: true
+      run-darwin:
+        description: 'Run Darwin builds'
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   test-nix-build-linux:
+    if: inputs.run-linux
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
       matrix:
-        system: 
+        system:
           - x86_64-linux
           # - aarch64-linux (TODO: github actions seem to struggle with aarch64-linux)
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -36,12 +40,13 @@ jobs:
           nix build .#gofancyimports --system ${{ matrix.system }} --out-link result-${{ matrix.system }}
 
   test-nix-build-darwin:
+    if: inputs.run-darwin
     runs-on: macos-latest
     continue-on-error: true
     strategy:
       matrix:
         system: [x86_64-darwin, aarch64-darwin]
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,4 +60,3 @@ jobs:
       - name: Build package
         run: |
           nix build .#gofancyimports --system ${{ matrix.system }} --out-link result-${{ matrix.system }}
-

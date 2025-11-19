@@ -1,18 +1,27 @@
-name: Default CI (tests)
+name: Default CI Checks
 
 on:
-  push:
-    branches:
-      - main
-      - 'main-*'
-  pull_request:
-    branches:
-      - main
-      - 'main-*'
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      go-version-file:
+        description: 'Path to go.mod file for Go version'
+        required: false
+        type: string
+        default: 'go.mod'
+      run-tests:
+        description: 'Run tests job'
+        required: false
+        type: boolean
+        default: true
+      run-build:
+        description: 'Run build job'
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   test:
+    if: inputs.run-tests
     name: Go CI Checks (lint + fmt + unit)
     runs-on: ubuntu-latest
     steps:
@@ -25,12 +34,13 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: ${{ inputs.go-version-file }}
 
       - name: Run CI checks
         run: just ci
 
   build:
+    if: inputs.run-build
     name: GoReleaser Build
     runs-on: ubuntu-latest
     steps:
@@ -42,7 +52,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: ${{ inputs.go-version-file }}
 
       - name: Run GoReleaser build
         uses: goreleaser/goreleaser-action@v6
@@ -52,4 +62,3 @@ jobs:
           args: build --clean --snapshot
         env:
           binary: gofancyimports
-

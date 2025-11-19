@@ -1,0 +1,36 @@
+name: PR CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'main-*'
+  pull_request:
+    branches:
+      - main
+      - 'main-*'
+  workflow_dispatch:
+
+jobs:
+  default-checks:
+    if: github.actor != 'dependabot[bot]' && github.event.pull_request.user.login != 'dependabot[bot]'
+    uses: ./.github/workflows/check-default.yml
+    with:
+      go-version-file: go.mod
+      run-tests: true
+      run-build: true
+
+  nix-checks:
+    if: github.actor != 'dependabot[bot]' && github.event.pull_request.user.login != 'dependabot[bot]'
+    uses: ./.github/workflows/check-nix.yml
+    with:
+      run-linux: true
+      run-darwin: true
+
+  check-pkg-meta:
+    if: github.actor != 'dependabot[bot]' && github.event.pull_request.user.login != 'dependabot[bot]'
+    uses: ./.github/workflows/check-pkg-meta.yml
+    with:
+      check_only: true
+      base_sha: ${{ github.event.pull_request.base.sha }}
+      head_sha: ${{ github.event.pull_request.head.sha }}

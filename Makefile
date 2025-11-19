@@ -10,7 +10,7 @@ build:
 
 .PHONY: build-all
 build-all:
-	$(GORELEASER) build --clean --snapshot --output "./dist/$(binary)"
+	$(GORELEASER) build --clean --snapshot --id=all
 
 .PHONY: install
 install: build
