@@ -110,8 +110,8 @@ func TestTestset00(t *testing.T) {
 
 func TestTestset01(t *testing.T) {
 	runTestSetFromFolder(t, "testdata/testset_exhaustive", ".go.in", ".go.out", func(testname TestName) types.ImportTransform {
-		switch testname {
-		case "noimports_hard_custom_transform":
+		switch {
+		case testname == "noimports_hard_custom_transform":
 			return func(decls []types.ImportDeclaration) []types.ImportDeclaration {
 				return []types.ImportDeclaration{
 					{
@@ -162,6 +162,10 @@ func TestTestset01(t *testing.T) {
 					},
 				}
 			}
+		case strings.HasPrefix(testname, "bugreport_3"):
+			return autogroup.New(
+				autogroup.WithSideEffectGroupEnabled(true),
+			)
 		}
 
 		return autogroup.New()

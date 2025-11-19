@@ -1,0 +1,4 @@
+package my_package
+
+// A comment justifying why we need this package
+import _ "github.com/jteeuwen/go-bindata/go-bindata"
