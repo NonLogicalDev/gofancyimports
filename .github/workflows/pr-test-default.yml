@@ -30,3 +30,26 @@ jobs:
       - name: Run CI checks
         run: just ci
 
+  build:
+    name: GoReleaser Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run GoReleaser build
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: build --clean --snapshot
+        env:
+          binary: gofancyimports
+
