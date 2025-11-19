@@ -50,17 +50,10 @@ jobs:
         if: steps.check-go-files.outputs.go_files_changed == 'true'
         uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Install dependencies
-        if: steps.check-go-files.outputs.go_files_changed == 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq perl
-
       - name: Run update_pkg_meta
         if: steps.check-go-files.outputs.go_files_changed == 'true'
         run: |
-          chmod +x scripts/update_pkg_meta
-          scripts/update_pkg_meta
+          nix shell nixpkgs#jq nixpkgs#perl -c bash scripts/update_pkg_meta
 
       - name: Check for pkg_meta.json changes
         if: steps.check-go-files.outputs.go_files_changed == 'true'
