@@ -1,0 +1,116 @@
+name: Package Metadata Checks
+
+on:
+  workflow_call:
+    inputs:
+      check_only:
+        description: 'Only check if pkg_meta.json is up to date (do not commit changes)'
+        required: false
+        type: boolean
+        default: false
+      base_sha:
+        description: 'Base commit SHA to compare against for detecting go.mod/go.sum changes'
+        required: false
+        type: string
+        default: ''
+      head_sha:
+        description: 'Head commit SHA to compare against for detecting go.mod/go.sum changes'
+        required: false
+        type: string
+        default: ''
+    outputs:
+      go_files_changed:
+        description: 'Whether go.mod or go.sum changed'
+        value: ${{ jobs.check-pkg-meta.outputs.go_files_changed }}
+      has_changes:
+        description: 'Whether pkg_meta.json has changes after update'
+        value: ${{ jobs.check-pkg-meta.outputs.has_changes }}
+
+jobs:
+  check-pkg-meta:
+    runs-on: ubuntu-latest
+    outputs:
+      go_files_changed: ${{ steps.check-go-files.outputs.go_files_changed }}
+      has_changes: ${{ steps.check-changes.outputs.has_changes }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base and head commits (if provided)
+        if: inputs.base_sha != '' && inputs.head_sha != ''
+        run: |
+          git fetch origin ${{ inputs.base_sha }} ${{ inputs.head_sha }}
+
+      - name: Check if go.mod or go.sum changed
+        id: check-go-files
+        run: |
+          if [ -n "${{ inputs.base_sha }}" ] && [ -n "${{ inputs.head_sha }}" ]; then
+            CHANGED_FILES=$(git diff --name-only ${{ inputs.base_sha }}..${{ inputs.head_sha }} || true)
+          else
+            CHANGED_FILES=$(git diff --name-only HEAD~1..HEAD || true)
+          fi
+
+          if echo "$CHANGED_FILES" | grep -E '(go\.mod|go\.sum)' > /dev/null; then
+            echo "go_files_changed=true" >> $GITHUB_OUTPUT
+            echo "Go files changed:"
+            echo "$CHANGED_FILES" | grep -E '(go\.mod|go\.sum)' || true
+          else
+            echo "go_files_changed=false" >> $GITHUB_OUTPUT
+            echo "Skipping: No Go dependency files changed"
+            echo "Changed files:"
+            echo "$CHANGED_FILES" || echo "(none)"
+          fi
+
+      - name: Install Nix
+        if: steps.check-go-files.outputs.go_files_changed == 'true'
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Setup Nix with flakes
+        if: steps.check-go-files.outputs.go_files_changed == 'true'
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Run update_pkg_meta
+        if: steps.check-go-files.outputs.go_files_changed == 'true'
+        run: |
+          nix shell nixpkgs#jq nixpkgs#perl -c bash scripts/update_pkg_meta
+
+      - name: Check for pkg_meta.json changes
+        if: steps.check-go-files.outputs.go_files_changed == 'true'
+        id: check-changes
+        run: |
+          if [ -n "$(git status --porcelain pkg_meta.json)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "pkg_meta.json has changes"
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "pkg_meta.json is up to date"
+          fi
+
+      - name: Fail if check_only mode and changes detected
+        if: inputs.check_only && steps.check-go-files.outputs.go_files_changed == 'true' && steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          echo "ERROR: pkg_meta.json is out of date!"
+          echo "Please run 'scripts/update_pkg_meta' locally and commit the changes."
+          git diff pkg_meta.json
+          exit 1
+
+      - name: Configure Git
+        if: ${{ !inputs.check_only }} && steps.check-go-files.outputs.go_files_changed == 'true' && steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Commit and push pkg_meta.json changes if there are changes
+        if: ${{ !inputs.check_only }} && steps.check-go-files.outputs.go_files_changed == 'true' && steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git add pkg_meta.json
+          # Only commit and push if there are staged changes
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update pkg_meta.json vendor hash after dependency update"
+            git push
+          else
+            echo "No changes to commit and push for pkg_meta.json"
+          fi
