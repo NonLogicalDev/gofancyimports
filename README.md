@@ -1,5 +1,7 @@
 # No-Compromise Deterministic GoLang Import Management
 
+[![Nix Build](https://github.com/NonLogicalDev/gofancyimports/actions/workflows/pr-default.yml/badge.svg)](https://github.com/NonLogicalDev/gofancyimports/actions/workflows/pr-default.yml)
+
 <p align="center"><img src="./assets/gofancyimports_hero.png" width="200" /></p>
 
 A mother of all tools to enforce deterministic order of imports across your golang codebase.
