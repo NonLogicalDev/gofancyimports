@@ -1,0 +1,32 @@
+name: Default CI (tests)
+
+on:
+  push:
+    branches:
+      - main
+      - 'main-*'
+  pull_request:
+    branches:
+      - main
+      - 'main-*'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Go CI Checks (lint + fmt + unit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run CI checks
+        run: just ci
+

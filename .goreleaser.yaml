@@ -14,8 +14,6 @@ archives:
   - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
 checksum:
   name_template: 'checksums.txt'
-snapshot:
-  name_template: "{{ incpatch .Version }}-next"
 
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj

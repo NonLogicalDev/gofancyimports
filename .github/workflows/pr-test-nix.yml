@@ -1,0 +1,58 @@
+name: Build with Nix
+
+on:
+  push:
+    branches:
+      - main
+      - 'main-*'
+  pull_request:
+    branches:
+      - main
+      - 'main-*'
+  workflow_dispatch:
+
+jobs:
+  test-nix-build-linux:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        system: 
+          - x86_64-linux
+          # - aarch64-linux (TODO: github actions seem to struggle with aarch64-linux)
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Setup Nix with flakes
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Build package
+        run: |
+          nix build .#gofancyimports --system ${{ matrix.system }} --out-link result-${{ matrix.system }}
+
+  test-nix-build-darwin:
+    runs-on: macos-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        system: [x86_64-darwin, aarch64-darwin]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Setup Nix with flakes
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Build package
+        run: |
+          nix build .#gofancyimports --system ${{ matrix.system }} --out-link result-${{ matrix.system }}
+

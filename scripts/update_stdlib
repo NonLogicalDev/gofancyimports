@@ -1,0 +1,30 @@
+#!/bin/sh
+
+set -ex
+
+# Remove existing remote if it exists (ignore errors)
+git remote remove go_x_tools 2>/dev/null || true
+
+# Remove existing directory if it exists (ignore errors)
+rm -rf internal/stdlib/go_x_stdlib 2>/dev/null || true
+
+# Remove from git index if it exists (ignore errors)
+git rm -r --cached internal/stdlib/go_x_stdlib 2>/dev/null || true
+
+# Add remote and fetch
+git remote add go_x_tools https://github.com/golang/tools
+git fetch go_x_tools
+
+# Read tree with the stdlib content
+git read-tree -u --prefix=internal/stdlib/go_x_stdlib go_x_tools/master:internal/stdlib
+
+# Remove all Go files that contain //go:build ignore
+find internal/stdlib/go_x_stdlib -name "*.go" -type f -exec grep -l "^//go:build ignore" {} \; | xargs rm -f 2>/dev/null || true
+
+# Remove all Go test files
+find internal/stdlib/go_x_stdlib -name "*_test.go" -type f -delete
+
+# Remove all testdata directories recursively
+find internal/stdlib/go_x_stdlib -type d -name "testdata" -prune -exec rm -rf '{}' +
+# (prune prevents descending into, rm -rf is recursive deletion)
+

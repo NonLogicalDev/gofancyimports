@@ -1,0 +1,80 @@
+name: Update pkg_meta.json on Dependabot PRs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-pkg-meta:
+    runs-on: ubuntu-latest
+    # Only run for Dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    
+    steps:
+      - name: Checkout Dependabot PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if go.mod or go.sum changed
+        id: check-go-files
+        run: |
+          if git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | grep -E '(go\.mod|go\.sum)' > /dev/null; then
+            echo "go_files_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "go_files_changed=false" >> $GITHUB_OUTPUT
+            echo "Skipping: No Go dependency files changed"
+          fi
+
+      - name: Install Nix
+        if: steps.check-go-files.outputs.go_files_changed == 'true'
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Setup Nix with flakes
+        if: steps.check-go-files.outputs.go_files_changed == 'true'
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Install dependencies
+        if: steps.check-go-files.outputs.go_files_changed == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq perl
+
+      - name: Run update_pkg_meta
+        if: steps.check-go-files.outputs.go_files_changed == 'true'
+        run: |
+          chmod +x scripts/update_pkg_meta
+          scripts/update_pkg_meta
+
+      - name: Check for pkg_meta.json changes
+        if: steps.check-go-files.outputs.go_files_changed == 'true'
+        id: check-changes
+        run: |
+          if [ -n "$(git status --porcelain pkg_meta.json)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure Git
+        if: steps.check-go-files.outputs.go_files_changed == 'true' && steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Commit pkg_meta.json changes
+        if: steps.check-go-files.outputs.go_files_changed == 'true' && steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git add pkg_meta.json
+          git commit -m "chore: update pkg_meta.json vendor hash after dependency update"
+
+      - name: Push changes to Dependabot PR
+        if: steps.check-go-files.outputs.go_files_changed == 'true' && steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git push
+
