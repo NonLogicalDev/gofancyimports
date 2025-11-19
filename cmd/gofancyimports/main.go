@@ -193,11 +193,23 @@ func discoverPaths(path string, recursive bool) ([]string, error) {
 }
 
 func (c *fixCMD) runRewrite(srcPath string, srcOriginal []byte, isStdin bool) error {
+	// Expand comma-separated values in localPrefixes
+	var expandedPrefixes []string
+	for _, prefix := range c.localPrefixes {
+		// Split by comma and trim whitespace
+		parts := strings.Split(prefix, ",")
+		for _, part := range parts {
+			if trimmed := strings.TrimSpace(part); trimmed != "" {
+				expandedPrefixes = append(expandedPrefixes, trimmed)
+			}
+		}
+	}
+
 	transform := autogroup.New(
 		autogroup.WithSpecFixups(autogroup.FixupEmbedPackage),
 		autogroup.WithNoDotGroupEnabled(c.groupNoDot),
 		autogroup.WithSideEffectGroupEnabled(c.groupEffect),
-		autogroup.WithLocalPrefixGroup(c.localPrefixes),
+		autogroup.WithLocalPrefixGroup(expandedPrefixes),
 	)
 	srcRewritten, err := gofancyimports.RewriteImportsSource(
 		srcPath, srcOriginal,
