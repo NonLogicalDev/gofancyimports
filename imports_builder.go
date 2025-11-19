@@ -61,29 +61,21 @@ func buildImportDecl(offset token.Pos, decl types.ImportDeclaration) (ast.Decl, 
 	// Ensure declaration starts from a new line.
 	newLines = append(newLines, offset)
 
+	// After adjusting the position move offset past the import keyword.
+	offset += token.Pos(len(token.IMPORT.String()))
+
 	// Handle single import case (no parenthesis should be added).
 	if len(decl.ImportGroups) == 1 && len(decl.ImportGroups[0].Specs) == 1 {
 		g := decl.ImportGroups[0]
 		s := g.Specs[0]
 		astSpec := copyImportSpec(s)
 
-		// If the group has a doc comment but the spec doesn't, and the declaration doesn't have a doc,
-		// move the group's doc to the declaration's doc (so it appears before "import" keyword)
-		if astDecl.Doc == nil && astSpec.Doc == nil && g.Doc != nil {
-			astDecl.Doc = buildCombinedCommentGroup(offset, g.Doc.List)
-			newLines = buildCommentListNewlines(astDecl.Doc.List, newLines)
-			offset = astDecl.Doc.End() + 1
-			newLines = append(newLines, offset)
-
-			// Reposition the declaration to after the doc comment
-			astutils.ShiftGenDeclPos(offset-astDecl.Pos(), astDecl)
-			newLines = append(newLines, offset)
+		var astSpecDoc *ast.CommentGroup
+		if g.Doc != nil {
+			astSpecDoc = buildCombinedCommentGroup(offset, g.Doc.List)
 		}
 
-		// After adjusting the position move offset past the import keyword.
-		offset += token.Pos(len(token.IMPORT.String()))
-
-		offset, newLines = buildImportSpec(offset, astSpec, nil, newLines)
+		offset, newLines = buildImportSpec(offset, astSpec, astSpecDoc, newLines)
 
 		// Populate the import declaration with adjusted specs.
 		astDecl.Specs = []ast.Spec{astSpec}
@@ -92,9 +84,6 @@ func buildImportDecl(offset token.Pos, decl types.ImportDeclaration) (ast.Decl, 
 		newLines = append(newLines, offset)
 		offset++
 	} else {
-		// After adjusting the position move offset past the import keyword.
-		offset += token.Pos(len(token.IMPORT.String()))
-
 		// Force add parenthesis if it does not exist.
 		astDecl.Lparen = offset
 		offset++
