@@ -42,10 +42,17 @@ This repo is the home for:
 
 If all you need is an import sorting tool that will deterministically fix your import order to a consistent opinionated convention, grab a copy of the `gofancyimports` tool:
 
+### Via Go Install
 ```
 go install github.com/NonLogicalDev/gofancyimports/cmd/gofancyimports@latest
 ```
 
+### Via Nix Flake Install
+```
+nix profile install github:NonLogicalDev/gofancyimports
+```
+
+### Usage
 ```
 $ gofancyimports fix -h
 Fixup single or multiple provided files
@@ -59,6 +66,7 @@ Flags:
       --group-nodot         group no dot imports
   -h, --help                help for fix
   -l, --local stringArray   group local imports (comma separated prefixes)
+  -r, --recursive           recurse into subdirectories when processing directories
   -w, --write               write the file back?
 ```
 

@@ -3,6 +3,8 @@ name: PR Dependabot
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    branches:
+      - "dependabot/**"
   push:
     branches:
       - "dependabot/**"
