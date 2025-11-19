@@ -35,6 +35,16 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: ${{ inputs.go-version-file }}
+      
+      - name: Setup Golang caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-golang-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-golang-
 
       - name: Run CI checks
         run: just ci
@@ -53,6 +63,16 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: ${{ inputs.go-version-file }}
+
+      - name: Setup Golang caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-golang-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-golang-
 
       - name: Run GoReleaser build
         uses: goreleaser/goreleaser-action@v6
