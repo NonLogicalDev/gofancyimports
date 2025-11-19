@@ -26,6 +26,7 @@ on:
         description: 'Whether pkg_meta.json has changes after update'
         value: ${{ jobs.check-pkg-meta.outputs.has_changes }}
 
+
 jobs:
   check-pkg-meta:
     runs-on: ubuntu-latest
@@ -37,7 +38,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
           fetch-depth: 0
+          token: ${{ github.token }}
 
       - name: Fetch base and head commits (if provided)
         if: inputs.base_sha != '' && inputs.head_sha != ''
@@ -103,14 +106,18 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-      - name: Commit and push pkg_meta.json changes if there are changes
+      - name: Commit pkg_meta.json changes
         if: ${{ !inputs.check_only }} && steps.check-go-files.outputs.go_files_changed == 'true' && steps.check-changes.outputs.has_changes == 'true'
         run: |
           git add pkg_meta.json
-          # Only commit and push if there are staged changes
           if ! git diff --cached --quiet; then
             git commit -m "chore: update pkg_meta.json vendor hash after dependency update"
-            git push
           else
-            echo "No changes to commit and push for pkg_meta.json"
+            echo "No staged changes to commit"
+            exit 0
           fi
+
+      - name: Push changes
+        if: ${{ !inputs.check_only }} && steps.check-go-files.outputs.go_files_changed == 'true' && steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git push --force-with-lease origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
