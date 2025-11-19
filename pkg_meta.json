@@ -1,7 +1,7 @@
 {
   "version": "0.3.0",
   "nixVendorHash": {
-    "gofancyimports": "sha256-itmfbGdu5/614pjXtgh+JoLRi3Bj7H4SnEXxwdM8BsY="
+    "gofancyimports": "sha256-tU7Lyzvg8yLnE3WqdNJ7l+miM4yQPhaj2CYT/JVpAV8="
   },
   "gitSha": "1f8dede8599de8553522cb77b82d88e38edd97d1"
 }
