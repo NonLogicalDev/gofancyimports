@@ -6,7 +6,7 @@ toolchain go1.24.4
 
 require (
 	github.com/pmezard/go-difflib v1.0.0
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/multierr v1.11.0
 	golang.org/x/tools v0.39.0
